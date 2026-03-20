@@ -72,7 +72,7 @@ install_opencode() {
 
     echo "Installing Opencode example config..."
     run "mkdir -p \"$opencode_dir\""
-    run "sed \"s|__BBAGENT_ROOT__|${SCRIPT_DIR}|g\" \"$SCRIPT_DIR/clients/opencode/opencode.example.json\" > \"$example_dest\""
+    run "sed -e \"s|__BBAGENT_ROOT__|${SCRIPT_DIR}|g\" -e \"s|__HOME__|${HOME}|g\" \"$SCRIPT_DIR/clients/opencode/opencode.example.json\" > \"$example_dest\""
     echo "Opencode example config copied to ${example_dest}"
     echo "Merge the skills, agent, and command sections into your active ~/.config/opencode/opencode.json."
 }
