@@ -1,0 +1,82 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "control_room": {
+      "description": "Primary coordinator for the BBAgent mission loop",
+      "mode": "all",
+      "maxSteps": 24,
+      "prompt": "Operate as the control-room coordinator for this repository. Read ./manual/workflow.md, ./roles/control-room.md, and ./guardrails/hunting.md before acting. Keep the loop moving through boundary, survey, probe, screen, gate, pivot, and brief. Route to specialist roles only when it materially improves the result."
+    },
+    "surface_cartographer": {
+      "description": "Recon and attack-surface specialist",
+      "mode": "all",
+      "maxSteps": 20,
+      "prompt": "Operate as the surface cartographer for this repository. Read ./roles/surface-cartographer.md, ./playbooks/survey.md, and ./tracks/surface-mapping/SKILL.md. Stay inside scope, rank the attack surface, and stop shallow recon spirals early."
+    },
+    "verdict_engine": {
+      "description": "Strict finding decision engine",
+      "mode": "all",
+      "maxSteps": 12,
+      "prompt": "Operate as the verdict engine for this repository. Read ./roles/verdict-engine.md, ./playbooks/screen.md, ./playbooks/gate.md, ./guardrails/reporting.md, and ./tracks/verdict-gate/SKILL.md. Output exactly one decision and the next action."
+    },
+    "evidence_editor": {
+      "description": "Impact-first disclosure writer",
+      "mode": "all",
+      "maxSteps": 16,
+      "prompt": "Operate as the evidence editor for this repository. Read ./roles/evidence-editor.md, ./playbooks/brief.md, ./guardrails/reporting.md, and ./tracks/disclosure-lab/SKILL.md. Write concise impact-first reports with exact evidence and no theoretical phrasing."
+    },
+    "pivot_engine": {
+      "description": "Exploit-chain escalation specialist",
+      "mode": "all",
+      "maxSteps": 14,
+      "prompt": "Operate as the pivot engine for this repository. Read ./roles/pivot-engine.md, ./playbooks/pivot.md, and the relevant sections of ./tracks/field-manual/SKILL.md. Only keep chains that can be proved from the current position."
+    },
+    "contract_cartographer": {
+      "description": "Smart contract review specialist",
+      "mode": "all",
+      "maxSteps": 20,
+      "prompt": "Operate as the contract cartographer for this repository. Read ./roles/contract-cartographer.md, ./playbooks/contract-sweep.md, and ./tracks/contract-review/SKILL.md. Apply pre-dive filters first, then audit by bug-class priority."
+    }
+  },
+  "command": {
+    "boundary": {
+      "description": "Check scope and ownership before testing",
+      "template": "Use ./playbooks/boundary.md. Determine whether the asset is owned by the target and clearly in scope. Stop if the answer is not defensible."
+    },
+    "survey": {
+      "description": "Map the attack surface for a target",
+      "agent": "surface_cartographer",
+      "template": "Use ./playbooks/survey.md. If the current conversation already contains a target, use it. Otherwise ask for one concise target or domain. Produce the best next surface to probe."
+    },
+    "probe": {
+      "description": "Run a focused hunt on a target or feature",
+      "agent": "control_room",
+      "template": "Use ./playbooks/probe.md, ./manual/workflow.md, and ./roles/control-room.md. Read scope first, choose one promising attack lane, and keep the work narrow."
+    },
+    "screen": {
+      "description": "Fast triage before full validation",
+      "agent": "verdict_engine",
+      "template": "Use ./playbooks/screen.md and return a fast GO, KILL, or DOWNGRADE with the missing proof step if any."
+    },
+    "gate": {
+      "description": "Run the full validation gate",
+      "agent": "verdict_engine",
+      "template": "Use ./playbooks/gate.md and ./tracks/verdict-gate/SKILL.md. Return PASS, KILL, DOWNGRADE, or CHAIN REQUIRED."
+    },
+    "pivot": {
+      "description": "Escalate a weak finding into a stronger chain",
+      "agent": "pivot_engine",
+      "template": "Use ./playbooks/pivot.md. Start from the confirmed bug A, choose the best B and C candidates, and keep only defensible chains."
+    },
+    "brief": {
+      "description": "Generate a submission-ready disclosure",
+      "agent": "evidence_editor",
+      "template": "Use ./playbooks/brief.md and ./tracks/disclosure-lab/SKILL.md. Write a concise, evidence-heavy report with severity justification and remediation."
+    },
+    "contract-sweep": {
+      "description": "Run the smart contract review lane",
+      "agent": "contract_cartographer",
+      "template": "Use ./playbooks/contract-sweep.md and ./tracks/contract-review/SKILL.md. Apply pre-dive kill signals first, then audit by bug-class priority."
+    }
+  }
+}
