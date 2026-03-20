@@ -13,10 +13,10 @@ This fork keeps the useful hunting content, but the project surface is now organ
 
 ## Start Here
 
-- Codex: [AGENTS.md](/home/xacce/dev/bbagent/AGENTS.md)
-- Claude Code: [CLAUDE.md](/home/xacce/dev/bbagent/CLAUDE.md)
-- Opencode: [README.md](/home/xacce/dev/bbagent/clients/opencode/README.md)
-- Generic workflow: [workflow.md](/home/xacce/dev/bbagent/manual/workflow.md)
+- Codex: [clients/codex/README.md](./clients/codex/README.md)
+- Claude Code: [clients/claude/README.md](./clients/claude/README.md)
+- Opencode: [clients/opencode/README.md](./clients/opencode/README.md)
+- Generic workflow: [manual/workflow.md](./manual/workflow.md)
 
 Install client assets with:
 
@@ -27,7 +27,7 @@ chmod +x bootstrap.sh
 ./bootstrap.sh --client opencode
 ```
 
-For Opencode, `bootstrap.sh` renders an example config with absolute repo paths into `~/.config/opencode/opencode-bbagent.example.json`. Follow [clients/opencode/README.md](/home/xacce/dev/bbagent/clients/opencode/README.md) and merge the `default_agent`, `skills`, `agent`, and `command` sections from that rendered file into your live Opencode config.
+For Opencode, `bootstrap.sh` renders an example config with absolute repo paths into `~/.config/opencode/opencode-bbagent.example.json`. Follow [clients/opencode/README.md](./clients/opencode/README.md) and merge the `default_agent`, `skills`, `agent`, and `command` sections from that rendered file into your live Opencode config.
 
 ## Mission Loop
 

@@ -4,11 +4,11 @@ Use this repository as an operations pack, not as a monolithic skill dump.
 
 ## Read Order
 
-1. [workflow.md](/home/xacce/dev/bbagent/manual/workflow.md)
-2. [hunting.md](/home/xacce/dev/bbagent/guardrails/hunting.md)
-3. [field-manual](/home/xacce/dev/bbagent/tracks/field-manual/SKILL.md) or the narrower track you need
-4. A role brief from [roles](/home/xacce/dev/bbagent/roles)
-5. A playbook from [playbooks](/home/xacce/dev/bbagent/playbooks) when execution starts
+1. [workflow.md](./manual/workflow.md)
+2. [hunting.md](./guardrails/hunting.md)
+3. [field-manual](./tracks/field-manual/SKILL.md) or the narrower track you need
+4. A role brief from [roles](./roles)
+5. A playbook from [playbooks](./playbooks) when execution starts
 
 ## Canonical Vocabulary
 
@@ -29,22 +29,22 @@ Use this repository as an operations pack, not as a monolithic skill dump.
 
 ## Track Selection
 
-- [field-manual](/home/xacce/dev/bbagent/tracks/field-manual/SKILL.md) for end-to-end hunts
-- [surface-mapping](/home/xacce/dev/bbagent/tracks/surface-mapping/SKILL.md) for recon
-- [exploit-atlas](/home/xacce/dev/bbagent/tracks/exploit-atlas/SKILL.md) for class-specific testing
-- [payload-bank](/home/xacce/dev/bbagent/tracks/payload-bank/SKILL.md) for payloads and bypasses
-- [verdict-gate](/home/xacce/dev/bbagent/tracks/verdict-gate/SKILL.md) for validation
-- [disclosure-lab](/home/xacce/dev/bbagent/tracks/disclosure-lab/SKILL.md) for report writing
-- [contract-review](/home/xacce/dev/bbagent/tracks/contract-review/SKILL.md) for smart contracts
+- [field-manual](./tracks/field-manual/SKILL.md) for end-to-end hunts
+- [surface-mapping](./tracks/surface-mapping/SKILL.md) for recon
+- [exploit-atlas](./tracks/exploit-atlas/SKILL.md) for class-specific testing
+- [payload-bank](./tracks/payload-bank/SKILL.md) for payloads and bypasses
+- [verdict-gate](./tracks/verdict-gate/SKILL.md) for validation
+- [disclosure-lab](./tracks/disclosure-lab/SKILL.md) for report writing
+- [contract-review](./tracks/contract-review/SKILL.md) for smart contracts
 
 ## Role Entry Points
 
-- [control-room](/home/xacce/dev/bbagent/roles/control-room.md) is the default orchestrator
-- [surface-cartographer](/home/xacce/dev/bbagent/roles/surface-cartographer.md) handles recon
-- [verdict-engine](/home/xacce/dev/bbagent/roles/verdict-engine.md) handles finding decisions
-- [evidence-editor](/home/xacce/dev/bbagent/roles/evidence-editor.md) handles write-ups
-- [pivot-engine](/home/xacce/dev/bbagent/roles/pivot-engine.md) handles chaining
-- [contract-cartographer](/home/xacce/dev/bbagent/roles/contract-cartographer.md) handles web3 review
+- [control-room](./roles/control-room.md) is the default orchestrator
+- [surface-cartographer](./roles/surface-cartographer.md) handles recon
+- [verdict-engine](./roles/verdict-engine.md) handles finding decisions
+- [evidence-editor](./roles/evidence-editor.md) handles write-ups
+- [pivot-engine](./roles/pivot-engine.md) handles chaining
+- [contract-cartographer](./roles/contract-cartographer.md) handles web3 review
 
 ## Output Standard
 

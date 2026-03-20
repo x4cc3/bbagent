@@ -4,7 +4,7 @@ Use BBAgent in Opencode with one primary agent and explicit slash commands.
 
 ## Files
 
-- Config template: [opencode.example.json](/home/xacce/dev/bbagent/clients/opencode/opencode.example.json)
+- Config template: [opencode.example.json](./opencode.example.json)
 - Rendered local example after bootstrap: `~/.config/opencode/opencode-bbagent.example.json`
 - Your live config: `~/.config/opencode/opencode.json`
 

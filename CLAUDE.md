@@ -11,9 +11,9 @@ chmod +x bootstrap.sh
 
 ## Read First
 
-- [workflow.md](/home/xacce/dev/bbagent/manual/workflow.md)
-- [hunting.md](/home/xacce/dev/bbagent/guardrails/hunting.md)
-- [control-room](/home/xacce/dev/bbagent/roles/control-room.md)
+- [workflow.md](./manual/workflow.md)
+- [hunting.md](./guardrails/hunting.md)
+- [control-room](./roles/control-room.md)
 
 ## Available Tracks
 

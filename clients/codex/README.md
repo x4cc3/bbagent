@@ -1,0 +1,69 @@
+# Codex Setup
+
+Use BBAgent in Codex by installing the tracks and using the repo's `AGENTS.md` as the local operating guide.
+
+## Files
+
+- Codex control file: [AGENTS.md](../../AGENTS.md)
+- Generic workflow: [workflow.md](../../manual/workflow.md)
+- Main full-loop track: [field-manual](../../tracks/field-manual/SKILL.md)
+
+## Install
+
+From the repo root:
+
+```bash
+./bootstrap.sh --client codex
+```
+
+That copies the BBAgent tracks into:
+
+```bash
+~/.codex/skills
+```
+
+Installed tracks:
+
+- `field-manual`
+- `surface-mapping`
+- `exploit-atlas`
+- `payload-bank`
+- `verdict-gate`
+- `disclosure-lab`
+- `contract-review`
+
+## How Codex Uses It
+
+Codex loads the installed tracks from `~/.codex/skills`, but the repo-local guidance should come from [AGENTS.md](../../AGENTS.md) when you are working inside this repository.
+
+Recommended read order:
+
+1. [AGENTS.md](../../AGENTS.md)
+2. [workflow.md](../../manual/workflow.md)
+3. [field-manual](../../tracks/field-manual/SKILL.md) or the narrower track you need
+
+## What Users Should Start With
+
+For general bug bounty work:
+
+- start with `field-manual` when you want the full hunt loop
+- switch to narrower tracks only when the task is already bounded
+
+Useful narrower tracks:
+
+- [surface-mapping](../../tracks/surface-mapping/SKILL.md) for recon
+- [exploit-atlas](../../tracks/exploit-atlas/SKILL.md) for bug-class tactics
+- [payload-bank](../../tracks/payload-bank/SKILL.md) for payloads and bypasses
+- [verdict-gate](../../tracks/verdict-gate/SKILL.md) for false-positive filtering
+- [disclosure-lab](../../tracks/disclosure-lab/SKILL.md) for report writing
+- [contract-review](../../tracks/contract-review/SKILL.md) for smart contracts
+
+## Verification
+
+Useful checks:
+
+```bash
+ls ~/.codex/skills
+```
+
+You should see the BBAgent track directories listed there after installation.
