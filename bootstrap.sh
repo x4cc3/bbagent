@@ -5,6 +5,7 @@ set -euo pipefail
 
 CLIENT="claude"
 DRY_RUN="false"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 usage() {
     cat <<'EOF'
@@ -29,7 +30,7 @@ run() {
 copy_tracks() {
     local dest_root="$1"
     run "mkdir -p \"$dest_root\""
-    for track_dir in tracks/*/; do
+    for track_dir in "$SCRIPT_DIR"/tracks/*/; do
         local track_name
         track_name=$(basename "$track_dir")
         run "mkdir -p \"$dest_root/$track_name\""
@@ -45,7 +46,7 @@ install_claude() {
     echo "Installing Claude-facing BBAgent assets..."
     copy_tracks "${skills_dir}"
     run "mkdir -p \"$commands_dir\""
-    for playbook_file in playbooks/*.md; do
+    for playbook_file in "$SCRIPT_DIR"/playbooks/*.md; do
         local playbook_name
         playbook_name=$(basename "$playbook_file")
         run "cp \"$playbook_file\" \"$commands_dir/$playbook_name\""
@@ -71,9 +72,9 @@ install_opencode() {
 
     echo "Installing Opencode example config..."
     run "mkdir -p \"$opencode_dir\""
-    run "cp \"clients/opencode/opencode.example.json\" \"$example_dest\""
+    run "sed \"s|__BBAGENT_ROOT__|${SCRIPT_DIR}|g\" \"$SCRIPT_DIR/clients/opencode/opencode.example.json\" > \"$example_dest\""
     echo "Opencode example config copied to ${example_dest}"
-    echo "Merge the agent and command sections into your active ~/.config/opencode/opencode.json."
+    echo "Merge the skills, agent, and command sections into your active ~/.config/opencode/opencode.json."
 }
 
 while [ $# -gt 0 ]; do

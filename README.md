@@ -15,7 +15,7 @@ This fork keeps the useful hunting content, but the project surface is now organ
 
 - Codex: [AGENTS.md](/home/xacce/dev/bbagent/AGENTS.md)
 - Claude Code: [CLAUDE.md](/home/xacce/dev/bbagent/CLAUDE.md)
-- Opencode: [opencode.example.json](/home/xacce/dev/bbagent/clients/opencode/opencode.example.json)
+- Opencode: [README.md](/home/xacce/dev/bbagent/clients/opencode/README.md)
 - Generic workflow: [workflow.md](/home/xacce/dev/bbagent/manual/workflow.md)
 
 Install client assets with:
@@ -27,6 +27,8 @@ chmod +x bootstrap.sh
 ./bootstrap.sh --client opencode
 ```
 
+For Opencode, `bootstrap.sh` renders an example config with absolute repo paths into `~/.config/opencode/opencode-bbagent.example.json`. Follow [clients/opencode/README.md](/home/xacce/dev/bbagent/clients/opencode/README.md) and merge the `default_agent`, `skills`, `agent`, and `command` sections from that rendered file into your live Opencode config.
+
 ## Mission Loop
 
 The repository now revolves around a six-step loop:
@@ -37,6 +39,15 @@ The repository now revolves around a six-step loop:
 4. `screen` or `gate` to kill weak findings fast
 5. `pivot` if the finding needs escalation
 6. `brief` when the evidence is strong enough to submit
+
+## Opencode Surface
+
+After merging the rendered Opencode config, users get:
+
+- a primary `bbagent` agent for the full workflow
+- slash commands for each track, such as `/field-manual`, `/payload-bank`, `/verdict-gate`, and `/contract-review`
+- slash commands for each playbook, such as `/survey`, `/probe`, `/screen`, `/gate`, and `/brief`
+- a documented way to set one model globally or assign different models per agent
 
 ## Repository Map
 
