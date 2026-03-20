@@ -1,6 +1,6 @@
 ---
 name: verdict-gate
-description: Finding validation before writing any report — 7-Question Gate (all 7 questions), 4 pre-submission gates, always-rejected list, conditionally valid with chain table, CVSS 3.1 quick reference, severity decision guide, report title formula, 60-second pre-submit checklist. Use BEFORE writing any report. One wrong answer = kill the finding and move on. Saves N/A ratio.
+description: Finding validation before writing any report — 7-Question Gate (all 7 questions), required evidence pack, confidence scoring, 4 pre-submission gates, always-rejected list, conditionally valid with chain table, CVSS 3.1 quick reference, severity decision guide, report title formula, and 60-second pre-submit checklist. Use BEFORE writing any report. One wrong answer = kill the finding and move on. Saves N/A ratio.
 ---
 
 # VERDICT GATE
@@ -8,6 +8,12 @@ description: Finding validation before writing any report — 7-Question Gate (a
 One wrong answer = STOP. Kill it. Move on.
 
 > "N/A hurts your validity ratio. Informative is neutral. Only submit what passes all 7 questions."
+
+Default policy: fail closed.
+
+- Never PASS without scope proof, exact request/response, victim or target-object proof, and an impact artifact.
+- Never PASS at LOW confidence.
+- Load [references/proof-matrix.md](./references/proof-matrix.md) whenever the bug class needs class-specific proof rules.
 
 ---
 
@@ -59,7 +65,7 @@ Confirm:
 
 ### Q4: Does it require privileged access that an attacker can't realistically get?
 
-- "Admin can do X" = centralization risk = **KILL IT** (on 99% of programs)
+- "Admin can do X" with no reachable privilege boundary = **KILL IT**
 - "Non-admin can do X that only admin should do" = valid
 - "Requires physical access / MFA device" = usually invalid
 - "Requires compromised victim account to work" = questionable, low severity at best
@@ -95,6 +101,38 @@ Check the NEVER SUBMIT list below. If it's on this list without a chain → **KI
 
 ---
 
+## REQUIRED EVIDENCE PACK
+
+PASS is forbidden unless you can assemble these artifacts:
+
+1. **Scope proof** — exact scope entry, program rule, or ownership proof for the asset
+2. **Attacker proof** — which identity or account performed the action
+3. **Victim or target-object proof** — which other user, tenant, record, bucket, token, or internal service was reached
+4. **Exact request and exact response** — copy-pasteable request plus the response that proves impact
+5. **Negative control** — what should have happened without the bug, or the safe comparison request
+6. **Impact artifact** — screenshot, response body, side effect, state diff, or log proving the consequence
+
+If any of the six items are missing, you do not have PASS yet.
+
+---
+
+## CONFIDENCE SCORE
+
+Score the finding before the final decision:
+
+| Confidence | Meaning | PASS Allowed? |
+|---|---|---|
+| **HIGH** | All evidence-pack items present. Exploit reproduced from scratch. Scope and impact both clear. | Yes |
+| **MEDIUM** | Bug is likely real, but one non-critical artifact is missing, usually negative control or a cleaner impact capture. | Only if the missing artifact does not affect reality, scope, or victim proof |
+| **LOW** | Missing scope proof, missing victim/object proof, missing exact request/response, or impact still inferred. | No |
+
+Fail closed:
+- LOW confidence can only end as `KILL`, `DOWNGRADE`, or `CHAIN REQUIRED`
+- MEDIUM confidence can never bypass Q1, Q3, or Gate 0
+- HIGH confidence is the target for any final report
+
+---
+
 ## 4 PRE-SUBMISSION GATES
 
 Run in sequence. ALL 4 must PASS.
@@ -105,6 +143,7 @@ Run in sequence. ALL 4 must PASS.
 [ ] Bug is IN SCOPE — checked program scope page explicitly
 [ ] Reproducible from scratch — can reproduce starting from fresh session
 [ ] Evidence ready — screenshot, response body, or video
+[ ] Confidence is not LOW
 ```
 
 ### Gate 1: Impact Validation (2 minutes)
@@ -122,6 +161,7 @@ Run in sequence. ALL 4 must PASS.
 [ ] Read most recent 5 disclosed reports for this program
 [ ] Not a "known issue" in their changelog or public docs
 [ ] Google: "TARGET_NAME ENDPOINT_NAME bug bounty"
+[ ] Compared with the closest disclosed report and wrote why this case is different
 ```
 
 ### Gate 3: Report Quality (10 minutes)
@@ -132,6 +172,7 @@ Run in sequence. ALL 4 must PASS.
 [ ] Severity: matches CVSS 3.1 score AND program's severity definitions
 [ ] Remediation: 1-2 sentences of concrete fix
 [ ] NEVER used "could potentially" or "may allow"
+[ ] Output includes a confidence score and any missing artifact
 ```
 
 ---
@@ -164,7 +205,6 @@ SSL weak ciphers
 Missing HttpOnly / Secure cookie flags alone
 Broken external links
 Autocomplete on password fields
-Pre-account takeover (usually — very specific conditions required)
 ```
 
 ---
@@ -187,6 +227,7 @@ Build the chain first, prove it works end to end, THEN report.
 | Self-XSS | + CSRF to trigger it on victim without their knowledge | Medium |
 | Subdomain takeover | + OAuth redirect_uri registered at that subdomain | Critical |
 | GraphQL introspection | + auth bypass mutation or IDOR on node() | High |
+| Pre-account takeover | + verified re-registration path + immediate victim takeover | Medium/High |
 
 ---
 
@@ -233,9 +274,29 @@ The goal is to QUICKLY disqualify bad leads so you hunt real bugs:
 1. **5-minute rule**: If you can't fill in Q1's template in 5 minutes → move on
 2. **Precondition count**: More than 2 preconditions simultaneously required → kill it
 3. **Impact test**: "What does attacker walk away with?" — if nothing tangible → kill it
-4. **Admin bypass**: "Admin can do X" is NEVER a bug → kill it immediately
+4. **Admin-only path**: "Admin can do X" without a reachable boundary crossing is not a bug
 5. **Design doc test**: If it's documented behavior → kill it immediately
 6. **Rabbit hole signal**: 30+ min on Q6 with no reproducible PoC → kill it
+
+---
+
+## CLASS-SPECIFIC PROOF
+
+Before a final PASS, load [references/proof-matrix.md](./references/proof-matrix.md) and verify the minimum proof set for the relevant bug class.
+
+This is mandatory for:
+- IDOR / BOLA / tenant-boundary findings
+- SSRF
+- XSS
+- SQLi
+- Auth bypass
+- OAuth / OIDC
+- Race conditions
+- GraphQL auth issues
+- AI / prompt injection
+- CSRF
+- File upload
+- Subdomain takeover
 
 ---
 

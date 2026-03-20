@@ -1,5 +1,5 @@
 ---
-description: Quick 7-Question Gate triage on a finding before writing a report. Kills N/A submissions before they happen. Faster than /gate — for quick go/no-go decisions. Usage: /screen
+description: Quick 7-Question Gate triage on a finding before writing a report. Kills N/A submissions before they happen. Faster than /gate — for quick go/no-go decisions. Requires enough evidence to justify deeper validation. Usage: /screen
 ---
 
 # /screen
@@ -9,6 +9,8 @@ Quick triage to decide: submit or kill?
 ## When to Use
 
 Use this before spending time writing a full report. If triage passes, run `/gate` for the full 4-gate check, then `/brief`.
+
+`/screen` is not allowed to PASS a final report by itself. It only decides whether the lead is worth deeper validation.
 
 ## Usage
 
@@ -20,6 +22,11 @@ Describe the finding in one sentence. Example:
 - "I can read other users' orders by changing user_id in /api/orders/{id}"
 - "The /api/export endpoint returns 200 with data even with no auth header"
 - "I found X-Forwarded-Host is reflected in the password reset email"
+
+Minimum input for a real GO:
+- exact endpoint or feature
+- exact request you already sent
+- what victim, object, or internal target was reached
 
 ## The 7 Questions (Fast Version)
 
@@ -59,8 +66,11 @@ Q7: Is this NOT on the never-submit list?
 
 Kill immediately if ANY of these are true:
 ```
-[ ] "Admin can do X" = not a bug
+[ ] "Admin can do X" with no reachable privilege boundary
 [ ] "Could theoretically lead to..." = no PoC = not a bug
+[ ] No exact request yet
+[ ] No victim, object, or internal target identified
+[ ] Scope is still assumed rather than checked
 [ ] Bug requires 3+ preconditions simultaneously
 [ ] Finding is a missing header, missing flag, missing DMARC
 [ ] SSRF with DNS callback only, no data returned
@@ -85,6 +95,10 @@ If you can't build the chain today → KILL IT.
 ## Output
 
 **GO:** "All 7 pass. Run /gate for full check, then /brief."
+
+Add a confidence note:
+- `GO (MEDIUM)` if the lead looks real but still needs cleaner proof
+- `GO (HIGH)` only if you already have the core evidence pack
 
 **KILL [reason]:**
 - "Q1 fails — no HTTP request yet"

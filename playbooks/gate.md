@@ -1,5 +1,5 @@
 ---
-description: Validate a finding — runs 7-Question Gate + 4-gate checklist. Kills weak findings before report writing. Prevents N/A submissions that hurt validity ratio. Usage: /gate
+description: Validate a finding — runs the 7-Question Gate, required evidence-pack check, confidence scoring, and 4-gate checklist. Kills weak findings before report writing. Prevents N/A submissions that hurt validity ratio. Usage: /gate
 ---
 
 # /gate
@@ -9,9 +9,10 @@ Run full validation on the current finding before writing a report.
 ## What This Does
 
 1. Runs 7-Question Gate (one wrong answer = kill it)
-2. Checks against the always-rejected list
-3. Runs 4 pre-submission gates
-4. Outputs: PASS (write the report) or KILL (move on)
+2. Checks the required evidence pack
+3. Checks against the always-rejected list
+4. Runs 4 pre-submission gates
+5. Outputs a decision plus confidence and the missing proof, if any
 
 ## Usage
 
@@ -22,8 +23,16 @@ Run full validation on the current finding before writing a report.
 Describe the finding when prompted. Include:
 - The endpoint
 - The bug class
+- The exact request and exact response
 - What the PoC shows
 - The target program
+- Scope proof
+- Victim or target-object proof
+- Negative control, if you have one
+
+Before a final PASS, load:
+
+- `tracks/verdict-gate/references/proof-matrix.md`
 
 ## The 7-Question Gate
 
@@ -52,7 +61,7 @@ Exact domain in scope? Not staging/dev? Not a third-party service?
 
 ### Q4: Does it need admin or privileged access that an attacker can't get?
 
-"Admin can do X" → KILL IT.
+"Admin can do X" with no reachable privilege boundary → KILL IT.
 "Regular user can do X that only admin should" → valid.
 
 ### Q5: Is this known or documented behavior?
@@ -74,6 +83,21 @@ rate limit on non-critical forms, missing cookie flags alone...
 ```
 
 If yes → KILL IT unless you have a chain.
+
+## Required Evidence Pack
+
+PASS is forbidden unless you have all of these:
+
+```
+[ ] Scope proof for the asset or feature
+[ ] Exact request and exact response
+[ ] Attacker identity or account used
+[ ] Victim or target-object proof
+[ ] Negative control or expected-safe comparison
+[ ] Impact artifact
+```
+
+If any are missing, do not PASS yet.
 
 ## Check: Conditionally Valid?
 
@@ -97,6 +121,7 @@ If no chain → KILL IT. If chain confirmed → report both together.
 [ ] In scope (checked program page)
 [ ] Reproducible from scratch
 [ ] Evidence captured
+[ ] Confidence is not LOW
 ```
 
 **Gate 1 — Impact (2 min):**
@@ -113,6 +138,7 @@ If no chain → KILL IT. If chain confirmed → report both together.
 [ ] Searched GitHub issues
 [ ] Read 5 most recent disclosed reports
 [ ] Not in changelog as known issue
+[ ] Wrote one line on why this is not the same as the closest public report
 ```
 
 **Gate 3 — Report quality (10 min):**
@@ -122,12 +148,29 @@ If no chain → KILL IT. If chain confirmed → report both together.
 [ ] Evidence shows actual impact
 [ ] CVSS calculated
 [ ] Fix: 1-2 concrete sentences
+[ ] Confidence score included
 ```
 
 ## Output
 
-**PASS:** "All 7 questions pass. All 4 gates pass. Proceed to /brief."
+Use this structure:
 
-**KILL:** "Q[N] fails because [reason]. Kill this finding. Reason: [explanation]. Move on."
+```
+DECISION: [PASS / KILL Q# / DOWNGRADE / CHAIN REQUIRED]
+CONFIDENCE: [HIGH / MEDIUM / LOW]
+FAILED_AT: [Q# / Gate # / N/A]
+MISSING_PROOF: [none or exact artifact still missing]
+ACTION: [next step]
+```
 
-**DOWNGRADE:** "Q6 only shows technical possibility. Downgrade from High to Medium. Requires showing actual data exfil in PoC."
+Rules:
+
+- Never PASS at LOW confidence
+- If scope proof, request/response, or victim/object proof is missing, do not PASS
+- If the bug class row in `references/proof-matrix.md` is incomplete, do not PASS
+
+**PASS:** "All 7 questions pass. All 4 gates pass. Confidence is HIGH. Proceed to /brief."
+
+**KILL:** "Q[N] fails because [reason]. Confidence is LOW. Missing proof: [artifact]. Move on."
+
+**DOWNGRADE:** "Q6 only shows technical possibility. Confidence is MEDIUM. Requires [artifact] before severity can be raised."
