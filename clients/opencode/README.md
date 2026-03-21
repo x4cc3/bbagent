@@ -136,6 +136,7 @@ For normal bug bounty work:
 Use narrower commands only when you already know the task:
 
 - `/survey` or `/surface-mapping`
+- `/mission`
 - `/probe`
 - `/screen` or `/verdict-gate`
 - `/brief` or `/disclosure-lab`
@@ -152,3 +153,23 @@ opencode debug agent bbagent
 ```
 
 If your skills are installed correctly, `opencode debug skill` should list the BBAgent tracks from this repo.
+
+## Autonomous Missions
+
+Use `/mission` when you want a long-running, scope-first autonomous workflow.
+
+The repo also ships a direct runner:
+
+```bash
+python3 bbagent_autonomous.py --target target.com --scope-file scope/target.json --quick
+```
+
+That writes mission state under `missions/` and lifecycle decisions under `findings/<target>/autonomous_verdict.*`.
+
+To generate `scope/target.json` from a program page or pasted scope file:
+
+```bash
+python3 bbagent_scope.py --csv hackerone-scope.csv
+python3 bbagent_scope.py --url "https://hackerone.com/example"
+python3 bbagent_scope.py --text-file scope-policy.txt
+```

@@ -10,6 +10,8 @@ This repository uses a control-room model:
 6. `pivot`
 7. `brief`
 
+For unattended runs, use [manual/autonomous-operations.md](../manual/autonomous-operations.md). It wraps the same loop in explicit scope checks, state tracking, and stop decisions.
+
 ## Routing
 
 - [playbooks/boundary.md](../playbooks/boundary.md) for scope checks

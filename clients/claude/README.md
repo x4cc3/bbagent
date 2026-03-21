@@ -36,6 +36,7 @@ Tracks:
 Playbooks:
 
 - `boundary`
+- `mission`
 - `survey`
 - `probe`
 - `screen`
@@ -62,11 +63,14 @@ For general bug bounty work:
 
 Use narrower playbooks or tracks only when the task is clearly scoped:
 
+- `/mission` for scope-first autonomous runs
 - `/survey` for recon
 - `/probe` for focused testing
 - `/screen` or `/gate` for validation
 - `/brief` for write-up
 - [contract-review](../../tracks/contract-review/SKILL.md) for smart contracts
+
+For autonomous runs, generate scope JSON first with `python3 bbagent_scope.py --csv hackerone-scope.csv` or another supported source, then feed that file into `python3 bbagent_autonomous.py`.
 
 ## Verification
 

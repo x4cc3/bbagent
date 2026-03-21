@@ -46,6 +46,16 @@ Use this repository as an operations pack, not as a monolithic skill dump.
 - [pivot-engine](./roles/pivot-engine.md) handles chaining
 - [contract-cartographer](./roles/contract-cartographer.md) handles web3 review
 
+## Explicit Routing
+
+- Start in [control-room](./roles/control-room.md) by default.
+- Hand recon and attack-surface work to [surface-cartographer](./roles/surface-cartographer.md).
+- Hand triage and validation work to [verdict-engine](./roles/verdict-engine.md).
+- Hand exploit-chain work to [pivot-engine](./roles/pivot-engine.md).
+- Hand report-writing work to [evidence-editor](./roles/evidence-editor.md) only after validation passes.
+- Hand smart contract and DeFi work to [contract-cartographer](./roles/contract-cartographer.md).
+- Do not keep specialist work in the default orchestrator when a matching specialist exists.
+
 ## Output Standard
 
 - Lead with the best current surface, finding, or blocker.

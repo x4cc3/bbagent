@@ -17,6 +17,9 @@ This fork keeps the useful hunting content, but the project surface is now organ
 - Claude Code: [clients/claude/README.md](./clients/claude/README.md)
 - Opencode: [clients/opencode/README.md](./clients/opencode/README.md)
 - Generic workflow: [manual/workflow.md](./manual/workflow.md)
+- Codebase architecture: [manual/codebase-architecture.md](./manual/codebase-architecture.md)
+- Autonomous operations: [manual/autonomous-operations.md](./manual/autonomous-operations.md)
+- Evidence packs: [manual/evidence-packs.md](./manual/evidence-packs.md)
 
 Install client assets with:
 
@@ -31,14 +34,15 @@ For Opencode, `bootstrap.sh` renders an example config with absolute repo paths 
 
 ## Mission Loop
 
-The repository now revolves around a six-step loop:
+The repository now revolves around a seven-step loop:
 
 1. `boundary` to confirm scope
 2. `survey` to map the surface
 3. `probe` to run a focused hunt
-4. `screen` or `gate` to kill weak findings fast
-5. `pivot` if the finding needs escalation
-6. `brief` when the evidence is strong enough to submit
+4. `screen` for fast triage
+5. `gate` for full validation
+6. `pivot` if the finding needs escalation
+7. `brief` when the evidence is strong enough to submit
 
 ## Opencode Surface
 
@@ -46,7 +50,8 @@ After merging the rendered Opencode config, users get:
 
 - a primary `bbagent` agent for the full workflow
 - slash commands for each track, such as `/field-manual`, `/payload-bank`, `/verdict-gate`, and `/contract-review`
-- slash commands for each playbook, such as `/survey`, `/probe`, `/screen`, `/gate`, and `/brief`
+- slash commands for each playbook, such as `/boundary`, `/mission`, `/survey`, `/probe`, `/screen`, `/gate`, `/pivot`, and `/brief`
+- an autonomous `/mission` workflow for scope-first long runs
 - a documented way to set one model globally or assign different models per agent
 
 ## Repository Map
@@ -94,12 +99,15 @@ The renamed Python and shell entrypoints are still available directly from the r
 - `bbagent_race_lab.py`
 - `bbagent_ai_probe.py`
 - `bbagent_ai_payloads.py`
-- `bbagent_ai_browser.js`
+- `bbagent_autonomous.py`
+- `bbagent_lifecycle.py`
+- `bbagent_scope.py`
 
 Example:
 
 ```bash
 ./bbagent_recon.sh target.com
+python3 bbagent_scope.py --csv hackerone-scope.csv
 python3 bbagent_learn.py --tech "nextjs,graphql,jwt"
 python3 bbagent_hunt.py --target target.com --scan-only
 python3 bbagent_validate.py

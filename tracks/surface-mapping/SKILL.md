@@ -31,7 +31,7 @@ TARGET="target.com"
 
 # Step 1: Chaos API (ProjectDiscovery — most comprehensive source)
 curl -s "https://dns.projectdiscovery.io/dns/$TARGET/subdomains" \
-  -H "Authorization: 15e77cfb-2300-426a-b8c3-fbfbf0ab17d4" \
+  -H "Authorization: $CHAOS_API_KEY" \
   | jq -r '.[]' > /tmp/subs.txt
 
 echo "[+] Chaos returned $(wc -l < /tmp/subs.txt) subdomains"
@@ -261,7 +261,7 @@ KNOWN="/tmp/$TARGET-subs-known.txt"
 
 subfinder -d $TARGET -silent > /tmp/$TARGET-subs-fresh.txt
 curl -s "https://dns.projectdiscovery.io/dns/$TARGET/subdomains" \
-  -H "Authorization: 15e77cfb-2300-426a-b8c3-fbfbf0ab17d4" \
+  -H "Authorization: $CHAOS_API_KEY" \
   | jq -r '.[]' >> /tmp/$TARGET-subs-fresh.txt
 
 # Diff against known

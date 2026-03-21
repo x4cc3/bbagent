@@ -22,6 +22,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import time
@@ -29,13 +30,17 @@ import hashlib
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FINDINGS_DIR = os.path.join(BASE_DIR, "findings")
+from bbagent_paths import repo_path
+
+BASE_DIR = repo_path()
+FINDINGS_DIR = repo_path("findings")
 
 
 def run_cmd(cmd, timeout=15):
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=timeout
+        )
         return result.returncode == 0, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
         return False, "", "timeout"
@@ -52,12 +57,12 @@ def curl_request(url, method="GET", headers=None, data=None, timeout=10):
 
     if headers:
         for k, v in headers.items():
-            cmd_parts.extend(["-H", f"{k}: {v}"])
+            cmd_parts.extend(["-H", shlex.quote(f"{k}: {v}")])
 
     if data:
-        cmd_parts.extend(["-d", data])
+        cmd_parts.extend(["-d", shlex.quote(data)])
 
-    cmd_parts.append(f'"{url}"')
+    cmd_parts.append(shlex.quote(url))
     cmd = " ".join(cmd_parts)
 
     success, stdout, stderr = run_cmd(cmd, timeout=timeout + 5)
@@ -73,7 +78,7 @@ def curl_request(url, method="GET", headers=None, data=None, timeout=10):
         resp_headers, body = stdout, ""
 
     # Extract status code
-    status_match = re.search(r'HTTP/\S+\s+(\d+)', resp_headers)
+    status_match = re.search(r"HTTP/\S+\s+(\d+)", resp_headers)
     status = int(status_match.group(1)) if status_match else 0
 
     return status, resp_headers, body
@@ -106,10 +111,15 @@ class ZeroDayFuzzer:
             "title": title,
             "details": details,
             "url": self.target,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
         self.findings.append(finding)
-        sev_colors = {"critical": "\033[0;31m", "high": "\033[0;31m", "medium": "\033[1;33m", "low": "\033[0;36m"}
+        sev_colors = {
+            "critical": "\033[0;31m",
+            "high": "\033[0;31m",
+            "medium": "\033[1;33m",
+            "low": "\033[0;36m",
+        }
         color = sev_colors.get(severity, "")
         reset = "\033[0m"
         print(f"    {color}[FINDING]{reset} [{severity.upper()}] {title}")
@@ -138,30 +148,31 @@ class ZeroDayFuzzer:
                 sig = get_response_signature(status, body)
                 if sig != base_sig:
                     self.add_finding(
-                        "method_tampering", "medium",
+                        "method_tampering",
+                        "medium",
                         f"HTTP {method} returns unexpected response ({status})",
-                        f"URL: {self.target}\nMethod: {method}\nStatus: {status}\nBaseline: {base_status}"
+                        f"URL: {self.target}\nMethod: {method}\nStatus: {status}\nBaseline: {base_status}",
                     )
 
             # Test TRACE specifically (XST)
             if method == "TRACE" and status == 200 and body:
                 if "TRACE" in body:
                     self.add_finding(
-                        "xst", "low",
+                        "xst",
+                        "low",
                         "TRACE method enabled (Cross-Site Tracing)",
-                        f"URL: {self.target}\nTRACE method reflects request"
+                        f"URL: {self.target}\nTRACE method reflects request",
                     )
 
         # Test method override headers
         for header, value in override_headers.items():
-            status, headers, body = curl_request(
-                self.target, headers={header: value}
-            )
+            status, headers, body = curl_request(self.target, headers={header: value})
             if status and status != base_status:
                 self.add_finding(
-                    "method_override", "medium",
+                    "method_override",
+                    "medium",
                     f"Method override via {header} changes behavior",
-                    f"Header: {header}: {value}\nOriginal status: {base_status}\nNew status: {status}"
+                    f"Header: {header}: {value}\nOriginal status: {base_status}\nNew status: {status}",
                 )
 
     def test_host_header_injection(self):
@@ -176,21 +187,21 @@ class ZeroDayFuzzer:
         ]
 
         for payload, desc in payloads:
-            status, headers, body = curl_request(
-                self.target, headers={"Host": payload}
-            )
+            status, headers, body = curl_request(self.target, headers={"Host": payload})
             if status and body:
                 if payload in body or "evil.com" in body:
                     self.add_finding(
-                        "host_header_injection", "high",
+                        "host_header_injection",
+                        "high",
                         desc,
-                        f"Payload: Host: {payload}\nReflected in response body"
+                        f"Payload: Host: {payload}\nReflected in response body",
                     )
                 if headers and ("evil.com" in headers):
                     self.add_finding(
-                        "host_header_injection", "high",
+                        "host_header_injection",
+                        "high",
                         f"{desc} (reflected in headers)",
-                        f"Payload: Host: {payload}\nReflected in response headers"
+                        f"Payload: Host: {payload}\nReflected in response headers",
                     )
 
     def test_cors_misconfig(self):
@@ -211,17 +222,20 @@ class ZeroDayFuzzer:
                 self.target, headers={"Origin": origin}
             )
             if headers:
-                acao = re.search(r'access-control-allow-origin:\s*(.+)', headers, re.I)
-                acac = re.search(r'access-control-allow-credentials:\s*true', headers, re.I)
+                acao = re.search(r"access-control-allow-origin:\s*(.+)", headers, re.I)
+                acac = re.search(
+                    r"access-control-allow-credentials:\s*true", headers, re.I
+                )
 
                 if acao:
                     acao_value = acao.group(1).strip()
                     if origin in acao_value or acao_value == "*":
                         severity = "high" if acac else "medium"
                         self.add_finding(
-                            "cors", severity,
+                            "cors",
+                            severity,
                             f"CORS reflects origin: {origin}",
-                            f"Origin: {origin}\nACAO: {acao_value}\nCredentials: {'Yes' if acac else 'No'}"
+                            f"Origin: {origin}\nACAO: {acao_value}\nCredentials: {'Yes' if acac else 'No'}",
                         )
 
     def test_security_headers(self):
@@ -266,9 +280,10 @@ class ZeroDayFuzzer:
             if status == 200 and body:
                 if "root:" in body or "/bin/" in body:
                     self.add_finding(
-                        "path_traversal", "critical",
+                        "path_traversal",
+                        "critical",
                         f"Path traversal: {desc}",
-                        f"URL: {url}\nEvidence: File content in response"
+                        f"URL: {url}\nEvidence: File content in response",
                     )
 
     def test_crlf_injection(self):
@@ -288,9 +303,10 @@ class ZeroDayFuzzer:
             status, headers, body = curl_request(url)
             if headers and "x-injected" in headers.lower():
                 self.add_finding(
-                    "crlf", "high",
+                    "crlf",
+                    "high",
                     "CRLF injection in URL path",
-                    f"URL: {url}\nInjected header reflected in response"
+                    f"URL: {url}\nInjected header reflected in response",
                 )
 
             # Test in query parameter
@@ -298,18 +314,35 @@ class ZeroDayFuzzer:
             status, headers, body = curl_request(url)
             if headers and "x-injected" in headers.lower():
                 self.add_finding(
-                    "crlf", "high",
+                    "crlf",
+                    "high",
                     "CRLF injection in query parameter",
-                    f"URL: {url}\nInjected header reflected in response"
+                    f"URL: {url}\nInjected header reflected in response",
                 )
 
     def test_open_redirect(self):
         """Test for open redirect with various bypass techniques."""
         print("  [>] Testing open redirect bypasses...")
 
-        redirect_params = ["url", "redirect", "next", "return", "returnTo", "return_to",
-                          "goto", "dest", "destination", "redir", "redirect_uri",
-                          "continue", "target", "rurl", "out", "view", "ref"]
+        redirect_params = [
+            "url",
+            "redirect",
+            "next",
+            "return",
+            "returnTo",
+            "return_to",
+            "goto",
+            "dest",
+            "destination",
+            "redir",
+            "redirect_uri",
+            "continue",
+            "target",
+            "rurl",
+            "out",
+            "view",
+            "ref",
+        ]
 
         payloads = [
             "https://evil.com",
@@ -333,14 +366,15 @@ class ZeroDayFuzzer:
                 cmd = f'curl -sI -D- --max-time 10 "{url}" 2>/dev/null'
                 success, stdout, _ = run_cmd(cmd, timeout=15)
                 if success and stdout:
-                    location = re.search(r'location:\s*(.+)', stdout, re.I)
+                    location = re.search(r"location:\s*(.+)", stdout, re.I)
                     if location:
                         loc = location.group(1).strip()
                         if "evil.com" in loc:
                             self.add_finding(
-                                "open_redirect", "medium",
+                                "open_redirect",
+                                "medium",
                                 f"Open redirect via {param} parameter",
-                                f"URL: {url}\nRedirects to: {loc}\nPayload: {payload}"
+                                f"URL: {url}\nRedirects to: {loc}\nPayload: {payload}",
                             )
                             break  # Found one, move to next param
 
@@ -349,8 +383,16 @@ class ZeroDayFuzzer:
         print("  [>] Testing 403 bypass techniques...")
 
         # First find 403 pages
-        common_403 = ["/admin", "/admin/", "/dashboard", "/internal", "/config",
-                      "/management", "/api/admin", "/server-status"]
+        common_403 = [
+            "/admin",
+            "/admin/",
+            "/dashboard",
+            "/internal",
+            "/config",
+            "/management",
+            "/api/admin",
+            "/server-status",
+        ]
 
         base_url = self.target.rstrip("/")
 
@@ -391,10 +433,11 @@ class ZeroDayFuzzer:
                 test_status, _, _ = curl_request(f"{base_url}{bypass_path}")
                 if test_status and test_status == 200:
                     self.add_finding(
-                        "403_bypass", "high",
+                        "403_bypass",
+                        "high",
                         f"403 bypass on {path} via {desc}",
                         f"Original: {base_url}{path} → 403\n"
-                        f"Bypass: {base_url}{bypass_path} → {test_status}"
+                        f"Bypass: {base_url}{bypass_path} → {test_status}",
                     )
                     break
 
@@ -403,10 +446,11 @@ class ZeroDayFuzzer:
                 if test_status and test_status == 200:
                     header_name = list(headers.keys())[0]
                     self.add_finding(
-                        "403_bypass", "high",
+                        "403_bypass",
+                        "high",
                         f"403 bypass on {path} via {header_name} header",
                         f"Original: {base_url}{path} → 403\n"
-                        f"Header: {header_name}: {headers[header_name]} → {test_status}"
+                        f"Header: {header_name}: {headers[header_name]} → {test_status}",
                     )
                     break
 
@@ -429,9 +473,10 @@ class ZeroDayFuzzer:
                 # Check if there's any reflection or error that indicates processing
                 if "polluted" in body and "__proto__" not in body:
                     self.add_finding(
-                        "prototype_pollution", "high",
+                        "prototype_pollution",
+                        "high",
                         "Potential prototype pollution",
-                        f"URL: {url}\nPayload value reflected without key"
+                        f"URL: {url}\nPayload value reflected without key",
                     )
 
     def test_cache_poisoning(self):
@@ -452,18 +497,19 @@ class ZeroDayFuzzer:
             )
             if body and "evil.com" in body:
                 self.add_finding(
-                    "cache_poisoning", "high",
+                    "cache_poisoning",
+                    "high",
                     f"Cache poisoning via {header} header",
-                    f"Header: {header}: {value}\nValue reflected in response body"
+                    f"Header: {header}: {value}\nValue reflected in response body",
                 )
 
     def run_all_tests(self):
         """Run all zero-day detection tests."""
-        print(f"\n{'='*55}")
+        print(f"\n{'=' * 55}")
         print(f"  Zero-Day Bug Finder — {self.domain}")
         print(f"  Target: {self.target}")
         print(f"  Mode: {'Deep' if self.deep else 'Standard'}")
-        print(f"{'='*55}")
+        print(f"{'=' * 55}")
 
         tests = [
             self.test_http_method_tampering,
@@ -477,10 +523,12 @@ class ZeroDayFuzzer:
         ]
 
         if self.deep:
-            tests.extend([
-                self.test_prototype_pollution,
-                self.test_cache_poisoning,
-            ])
+            tests.extend(
+                [
+                    self.test_prototype_pollution,
+                    self.test_cache_poisoning,
+                ]
+            )
 
         for test in tests:
             try:
@@ -498,14 +546,18 @@ class ZeroDayFuzzer:
 
         output_file = os.path.join(self.findings_dir, "zero_day_findings.json")
         with open(output_file, "w") as f:
-            json.dump({
-                "target": self.target,
-                "domain": self.domain,
-                "scan_date": datetime.now().isoformat(),
-                "mode": "deep" if self.deep else "standard",
-                "total_findings": len(self.findings),
-                "findings": self.findings
-            }, f, indent=2)
+            json.dump(
+                {
+                    "target": self.target,
+                    "domain": self.domain,
+                    "scan_date": datetime.now().isoformat(),
+                    "mode": "deep" if self.deep else "standard",
+                    "total_findings": len(self.findings),
+                    "findings": self.findings,
+                },
+                f,
+                indent=2,
+            )
 
         # Also save as readable text
         text_file = os.path.join(self.findings_dir, "zero_day_findings.txt")
@@ -519,9 +571,9 @@ class ZeroDayFuzzer:
 
     def print_summary(self):
         """Print findings summary."""
-        print(f"\n{'='*55}")
+        print(f"\n{'=' * 55}")
         print(f"  Zero-Day Scan Summary — {self.domain}")
-        print(f"{'='*55}")
+        print(f"{'=' * 55}")
 
         if not self.findings:
             print("  No findings detected.")
@@ -542,14 +594,18 @@ class ZeroDayFuzzer:
 
         print(f"\n  NOTE: All findings need manual verification.")
         print(f"  False positives are possible — verify before reporting.")
-        print(f"{'='*55}\n")
+        print(f"{'=' * 55}\n")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Zero-Day Bug Finder")
     parser.add_argument("target", nargs="?", help="Target URL (https://example.com)")
-    parser.add_argument("--recon-dir", type=str, help="Recon directory to load URLs from")
-    parser.add_argument("--deep", action="store_true", help="Run additional deep checks")
+    parser.add_argument(
+        "--recon-dir", type=str, help="Recon directory to load URLs from"
+    )
+    parser.add_argument(
+        "--deep", action="store_true", help="Run additional deep checks"
+    )
     args = parser.parse_args()
 
     if not args.target and not args.recon_dir:
@@ -569,6 +625,10 @@ def main():
         if os.path.exists(live_file):
             with open(live_file) as f:
                 targets.extend([line.strip() for line in f if line.strip()][:10])
+
+    if not targets:
+        print("[!] No targets resolved from arguments or recon directory")
+        sys.exit(1)
 
     for target in targets:
         fuzzer = ZeroDayFuzzer(target, deep=args.deep)

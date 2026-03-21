@@ -19,10 +19,11 @@ log_warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
 log_info()  { echo -e "${CYAN}[*]${NC} $1"; }
 log_step()  { echo -e "    ${CYAN}[>]${NC} $1"; }
 log_done()  { echo -e "    ${GREEN}[✓]${NC} $1"; }
+log_vuln()  { echo -e "    ${RED}[V]${NC} $1"; }
 
 TARGET="${1:?Usage: $0 <target-domain> [--quick]}"
 QUICK_MODE="${2:-}"
-BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 RECON_DIR="$BASE_DIR/recon/$TARGET"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 THREADS=20
@@ -241,7 +242,7 @@ fi
 echo ""
 log_info "Phase 6: Directory Fuzzing"
 
-WORDLIST_DIR="$BASE_DIR/tools/wordlists"
+WORDLIST_DIR="$BASE_DIR/wordlists"
 
 if command -v ffuf &>/dev/null && [ -s "$RECON_DIR/live/urls.txt" ]; then
     # Select wordlist
@@ -269,7 +270,7 @@ if command -v ffuf &>/dev/null && [ -s "$RECON_DIR/live/urls.txt" ]; then
                 -timeout 10 \
                 -o "$RECON_DIR/dirs/ffuf_${domain}.json" \
                 -of json 2>/dev/null || true
-            ((FUZZ_COUNT++))
+            ((++FUZZ_COUNT))
         done < "$RECON_DIR/live/urls.txt"
 
         log_done "Directory fuzzing complete ($FUZZ_COUNT hosts)"
@@ -384,5 +385,5 @@ echo "  Results: $RECON_DIR/"
 echo "============================================="
 echo ""
 echo "  Next: Run vulnerability scanner"
-echo "    ./tools/vuln_scanner.sh $RECON_DIR"
+echo "    ./vuln_scanner.sh $RECON_DIR"
 echo "============================================="

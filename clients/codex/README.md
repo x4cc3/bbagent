@@ -58,6 +58,8 @@ Useful narrower tracks:
 - [disclosure-lab](../../tracks/disclosure-lab/SKILL.md) for report writing
 - [contract-review](../../tracks/contract-review/SKILL.md) for smart contracts
 
+For autonomous runs, use the repo-local mission workflow in [playbooks/mission.md](../../playbooks/mission.md), generate scope JSON with `python3 bbagent_scope.py --csv hackerone-scope.csv`, and run `python3 bbagent_autonomous.py --target ... --scope-file ...`.
+
 ## Verification
 
 Useful checks:

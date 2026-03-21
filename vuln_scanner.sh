@@ -31,7 +31,7 @@ fi
 
 # Determine target name from recon dir
 TARGET=$(basename "$RECON_DIR")
-BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 FINDINGS_DIR="$BASE_DIR/findings/$TARGET"
 THREADS=10
 RATE_LIMIT=20  # Conservative default to avoid WAF blocks (429/403)

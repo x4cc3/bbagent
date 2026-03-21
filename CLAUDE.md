@@ -29,6 +29,7 @@ chmod +x bootstrap.sh
 
 ## Playbooks
 
+- `/mission`
 - `/survey`
 - `/probe`
 - `/screen`
@@ -55,5 +56,18 @@ chmod +x bootstrap.sh
 - `bbagent_map.py`
 - `bbagent_validate.py`
 - `bbagent_report.py`
+- `bbagent_scope.py`
+- `bbagent_lifecycle.py`
+- `bbagent_autonomous.py`
 
 Use `control-room` as the default entrypoint. Switch to the narrower role only when the task is clearly bounded.
+
+Be explicit about role handoff:
+
+- use `surface-cartographer` for recon, asset discovery, and attack-surface ranking
+- use `verdict-engine` for quick triage, validation, and go/no-go decisions
+- use `pivot-engine` for exploit chaining and impact escalation
+- use `evidence-editor` for final report writing only after validation passes
+- use `contract-cartographer` for smart contract and DeFi review
+
+Do not keep specialist work inside `control-room` when one of those roles is the better fit.

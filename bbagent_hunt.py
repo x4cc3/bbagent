@@ -18,17 +18,21 @@ Usage:
 import argparse
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 from datetime import datetime
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TOOLS_DIR = os.path.join(BASE_DIR, "tools")
-TARGETS_DIR = os.path.join(BASE_DIR, "targets")
-RECON_DIR = os.path.join(BASE_DIR, "recon")
-FINDINGS_DIR = os.path.join(BASE_DIR, "findings")
-REPORTS_DIR = os.path.join(BASE_DIR, "reports")
-WORDLIST_DIR = os.path.join(TOOLS_DIR, "wordlists")
+from bbagent_paths import repo_path
+
+BASE_DIR = repo_path()
+TOOLS_DIR = BASE_DIR
+TARGETS_DIR = repo_path("targets")
+RECON_DIR = repo_path("recon")
+FINDINGS_DIR = repo_path("findings")
+REPORTS_DIR = repo_path("reports")
+WORDLIST_DIR = repo_path("wordlists")
 
 # Colors
 GREEN = "\033[0;32m"
@@ -37,6 +41,7 @@ YELLOW = "\033[1;33m"
 CYAN = "\033[0;36m"
 BOLD = "\033[1m"
 NC = "\033[0m"
+TARGET_RE = re.compile(r"^[A-Za-z0-9.-]+$")
 
 
 def log(level, msg):
@@ -49,8 +54,7 @@ def run_cmd(cmd, cwd=None, timeout=600):
     """Run a shell command and return (success, output)."""
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True,
-            cwd=cwd, timeout=timeout
+            cmd, shell=True, capture_output=True, text=True, cwd=cwd, timeout=timeout
         )
         return result.returncode == 0, result.stdout + result.stderr
     except subprocess.TimeoutExpired:
@@ -59,9 +63,25 @@ def run_cmd(cmd, cwd=None, timeout=600):
         return False, str(e)
 
 
+def validate_target(target):
+    if not target or not TARGET_RE.match(target):
+        raise ValueError(f"Unsupported target format: {target}")
+    return target
+
+
 def check_tools():
     """Check which tools are installed."""
-    tools = ["subfinder", "httpx", "nuclei", "ffuf", "nmap", "amass", "gau", "dalfox", "subjack"]
+    tools = [
+        "subfinder",
+        "httpx",
+        "nuclei",
+        "ffuf",
+        "nmap",
+        "amass",
+        "gau",
+        "dalfox",
+        "subjack",
+    ]
     installed = []
     missing = []
 
@@ -107,10 +127,7 @@ def select_targets(top_n=10):
     """Run target selector."""
     log("info", "Running target selector...")
     script = os.path.join(TOOLS_DIR, "target_selector.py")
-    success, output = run_cmd(
-        f'python3 "{script}" --top {top_n}',
-        timeout=60
-    )
+    success, output = run_cmd(f'python3 "{script}" --top {top_n}', timeout=60)
     print(output)
 
     if not success:
@@ -129,26 +146,31 @@ def select_targets(top_n=10):
 
 def run_recon(domain, quick=False):
     """Run recon engine on a domain."""
+    domain = validate_target(domain)
     log("info", f"Running recon on {domain}...")
     script = os.path.join(TOOLS_DIR, "bbagent_recon.sh")
     quick_flag = "--quick" if quick else ""
 
     # Run with live output
+    proc = None
     try:
         proc = subprocess.Popen(
-            f'bash "{script}" "{domain}" {quick_flag}',
-            shell=True, cwd=BASE_DIR
+            f"bash {shlex.quote(script)} {shlex.quote(domain)} {quick_flag}",
+            shell=True,
+            cwd=BASE_DIR,
         )
         proc.wait(timeout=1800)  # 30 min timeout
         return proc.returncode == 0
     except subprocess.TimeoutExpired:
-        proc.kill()
+        if proc is not None:
+            proc.kill()
         log("err", f"Recon timed out for {domain}")
         return False
 
 
 def run_vuln_scan(domain, quick=False):
     """Run vulnerability scanner on recon results."""
+    domain = validate_target(domain)
     recon_dir = os.path.join(RECON_DIR, domain)
     if not os.path.isdir(recon_dir):
         log("err", f"No recon data found for {domain}. Run recon first.")
@@ -158,21 +180,25 @@ def run_vuln_scan(domain, quick=False):
     script = os.path.join(TOOLS_DIR, "vuln_scanner.sh")
     quick_flag = "--quick" if quick else ""
 
+    proc = None
     try:
         proc = subprocess.Popen(
-            f'bash "{script}" "{recon_dir}" {quick_flag}',
-            shell=True, cwd=BASE_DIR
+            f"bash {shlex.quote(script)} {shlex.quote(recon_dir)} {quick_flag}",
+            shell=True,
+            cwd=BASE_DIR,
         )
         proc.wait(timeout=1800)
         return proc.returncode == 0
     except subprocess.TimeoutExpired:
-        proc.kill()
+        if proc is not None:
+            proc.kill()
         log("err", f"Vulnerability scan timed out for {domain}")
         return False
 
 
 def generate_reports(domain):
     """Generate reports for findings."""
+    domain = validate_target(domain)
     findings_dir = os.path.join(FINDINGS_DIR, domain)
     if not os.path.isdir(findings_dir):
         log("warn", f"No findings for {domain}")
@@ -180,25 +206,33 @@ def generate_reports(domain):
 
     log("info", f"Generating reports for {domain}...")
     script = os.path.join(TOOLS_DIR, "bbagent_report.py")
-    success, output = run_cmd(f'python3 "{script}" "{findings_dir}"')
+    success, output = run_cmd(
+        f"python3 {shlex.quote(script)} {shlex.quote(findings_dir)}"
+    )
     print(output)
 
     # Count generated reports
     report_dir = os.path.join(REPORTS_DIR, domain)
     if os.path.isdir(report_dir):
-        return len([f for f in os.listdir(report_dir) if f.endswith(".md") and f != "SUMMARY.md"])
+        return len(
+            [
+                f
+                for f in os.listdir(report_dir)
+                if f.endswith(".md") and f != "SUMMARY.md"
+            ]
+        )
     return 0
 
 
 def show_status():
     """Show current pipeline status."""
-    print(f"\n{BOLD}{'='*50}{NC}")
+    print(f"\n{BOLD}{'=' * 50}{NC}")
     print(f"{BOLD}  Bug Bounty Pipeline Status{NC}")
-    print(f"{BOLD}{'='*50}{NC}\n")
+    print(f"{BOLD}{'=' * 50}{NC}\n")
 
     # Check tools
     installed, missing = check_tools()
-    print(f"  Tools: {len(installed)}/{len(installed)+len(missing)} installed")
+    print(f"  Tools: {len(installed)}/{len(installed) + len(missing)} installed")
     if missing:
         print(f"  Missing: {', '.join(missing)}")
 
@@ -213,7 +247,11 @@ def show_status():
 
     # Check recon results
     if os.path.isdir(RECON_DIR):
-        recon_targets = [d for d in os.listdir(RECON_DIR) if os.path.isdir(os.path.join(RECON_DIR, d))]
+        recon_targets = [
+            d
+            for d in os.listdir(RECON_DIR)
+            if os.path.isdir(os.path.join(RECON_DIR, d))
+        ]
         print(f"  Recon completed: {len(recon_targets)} targets")
         for t in recon_targets:
             subs_file = os.path.join(RECON_DIR, t, "subdomains", "all.txt")
@@ -224,7 +262,11 @@ def show_status():
 
     # Check findings
     if os.path.isdir(FINDINGS_DIR):
-        finding_targets = [d for d in os.listdir(FINDINGS_DIR) if os.path.isdir(os.path.join(FINDINGS_DIR, d))]
+        finding_targets = [
+            d
+            for d in os.listdir(FINDINGS_DIR)
+            if os.path.isdir(os.path.join(FINDINGS_DIR, d))
+        ]
         print(f"  Scanned targets: {len(finding_targets)}")
         for t in finding_targets:
             summary = os.path.join(FINDINGS_DIR, t, "summary.txt")
@@ -238,20 +280,28 @@ def show_status():
 
     # Check reports
     if os.path.isdir(REPORTS_DIR):
-        report_targets = [d for d in os.listdir(REPORTS_DIR) if os.path.isdir(os.path.join(REPORTS_DIR, d))]
+        report_targets = [
+            d
+            for d in os.listdir(REPORTS_DIR)
+            if os.path.isdir(os.path.join(REPORTS_DIR, d))
+        ]
         print(f"  Reports generated: {len(report_targets)} targets")
         for t in report_targets:
-            reports = [f for f in os.listdir(os.path.join(REPORTS_DIR, t)) if f.endswith(".md") and f != "SUMMARY.md"]
+            reports = [
+                f
+                for f in os.listdir(os.path.join(REPORTS_DIR, t))
+                if f.endswith(".md") and f != "SUMMARY.md"
+            ]
             print(f"    - {t}: {len(reports)} reports")
 
-    print(f"\n{'='*50}\n")
+    print(f"\n{'=' * 50}\n")
 
 
 def print_dashboard(results):
     """Print final summary dashboard."""
-    print(f"\n{BOLD}{'='*60}{NC}")
+    print(f"\n{BOLD}{'=' * 60}{NC}")
     print(f"{BOLD}  HUNT COMPLETE — Summary Dashboard{NC}")
-    print(f"{BOLD}{'='*60}{NC}\n")
+    print(f"{BOLD}{'=' * 60}{NC}\n")
     print(f"  Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
     total_findings = 0
@@ -260,15 +310,17 @@ def print_dashboard(results):
     for r in results:
         status_icon = f"{GREEN}OK{NC}" if r["success"] else f"{RED}FAIL{NC}"
         print(f"  [{status_icon}] {r['domain']}")
-        print(f"       Recon: {'Done' if r.get('recon') else 'Skipped'} | "
-              f"Scan: {'Done' if r.get('scan') else 'Skipped'} | "
-              f"Reports: {r.get('reports', 0)}")
+        print(
+            f"       Recon: {'Done' if r.get('recon') else 'Skipped'} | "
+            f"Scan: {'Done' if r.get('scan') else 'Skipped'} | "
+            f"Reports: {r.get('reports', 0)}"
+        )
         total_findings += r.get("findings", 0)
         total_reports += r.get("reports", 0)
 
     print(f"\n  Total reports generated: {total_reports}")
     print(f"\n  Reports directory: {REPORTS_DIR}/")
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
 
     if total_reports > 0:
         print(f"\n  {YELLOW}Next steps:{NC}")
@@ -276,31 +328,36 @@ def print_dashboard(results):
         print("  2. Manually verify findings before submitting")
         print("  3. Add PoC screenshots where applicable")
         print("  4. Submit via HackerOne program pages")
-        print(f"\n{'='*60}\n")
+        print(f"\n{'=' * 60}\n")
 
 
 def run_cve_hunt(domain):
     """Run CVE hunter on a target."""
+    domain = validate_target(domain)
     log("info", f"Running CVE hunter on {domain}...")
     script = os.path.join(TOOLS_DIR, "cve_hunter.py")
     recon_dir = os.path.join(RECON_DIR, domain)
     recon_flag = f'--recon-dir "{recon_dir}"' if os.path.isdir(recon_dir) else ""
 
+    proc = None
     try:
         proc = subprocess.Popen(
-            f'python3 "{script}" "{domain}" {recon_flag}',
-            shell=True, cwd=BASE_DIR
+            f"python3 {shlex.quote(script)} {shlex.quote(domain)} {recon_flag}",
+            shell=True,
+            cwd=BASE_DIR,
         )
         proc.wait(timeout=600)
         return proc.returncode == 0
     except subprocess.TimeoutExpired:
-        proc.kill()
+        if proc is not None:
+            proc.kill()
         log("err", f"CVE hunt timed out for {domain}")
         return False
 
 
 def run_zero_day_fuzzer(domain, deep=False):
     """Run zero-day fuzzer on a target."""
+    domain = validate_target(domain)
     log("info", f"Running zero-day fuzzer on {domain}...")
     script = os.path.join(TOOLS_DIR, "zero_day_fuzzer.py")
     deep_flag = "--deep" if deep else ""
@@ -308,23 +365,38 @@ def run_zero_day_fuzzer(domain, deep=False):
     # Check if we have recon data with live URLs
     recon_dir = os.path.join(RECON_DIR, domain)
     if os.path.isdir(recon_dir):
-        cmd = f'python3 "{script}" "https://{domain}" --recon-dir "{recon_dir}" {deep_flag}'
+        cmd = f"python3 {shlex.quote(script)} {shlex.quote('https://' + domain)} --recon-dir {shlex.quote(recon_dir)} {deep_flag}"
     else:
-        cmd = f'python3 "{script}" "https://{domain}" {deep_flag}'
+        cmd = f"python3 {shlex.quote(script)} {shlex.quote('https://' + domain)} {deep_flag}"
 
+    proc = None
     try:
         proc = subprocess.Popen(cmd, shell=True, cwd=BASE_DIR)
         proc.wait(timeout=900)
         return proc.returncode == 0
     except subprocess.TimeoutExpired:
-        proc.kill()
+        if proc is not None:
+            proc.kill()
         log("err", f"Zero-day fuzzer timed out for {domain}")
         return False
 
 
-def hunt_target(domain, quick=False, recon_only=False, scan_only=False, cve_hunt=False, zero_day=False):
+def hunt_target(
+    domain,
+    quick=False,
+    recon_only=False,
+    scan_only=False,
+    cve_hunt=False,
+    zero_day=False,
+):
     """Run the full hunt pipeline on a single target."""
-    result = {"domain": domain, "success": True, "recon": False, "scan": False, "reports": 0}
+    result = {
+        "domain": domain,
+        "success": True,
+        "recon": False,
+        "scan": False,
+        "reports": 0,
+    }
 
     if not scan_only:
         result["recon"] = run_recon(domain, quick=quick)
@@ -361,19 +433,33 @@ Examples:
   python3 bbagent_hunt.py --quick --target example.com  Quick scan
   python3 bbagent_hunt.py --status                   Show progress
   python3 bbagent_hunt.py --setup-wordlists          Download wordlists
-        """
+        """,
     )
     parser.add_argument("--target", type=str, help="Specific target domain to hunt")
-    parser.add_argument("--quick", action="store_true", help="Quick scan mode (fewer checks)")
-    parser.add_argument("--recon-only", action="store_true", help="Only run reconnaissance")
-    parser.add_argument("--scan-only", action="store_true", help="Only run vulnerability scanner")
-    parser.add_argument("--report-only", action="store_true", help="Only generate reports")
+    parser.add_argument(
+        "--quick", action="store_true", help="Quick scan mode (fewer checks)"
+    )
+    parser.add_argument(
+        "--recon-only", action="store_true", help="Only run reconnaissance"
+    )
+    parser.add_argument(
+        "--scan-only", action="store_true", help="Only run vulnerability scanner"
+    )
+    parser.add_argument(
+        "--report-only", action="store_true", help="Only generate reports"
+    )
     parser.add_argument("--status", action="store_true", help="Show pipeline status")
-    parser.add_argument("--setup-wordlists", action="store_true", help="Download wordlists")
+    parser.add_argument(
+        "--setup-wordlists", action="store_true", help="Download wordlists"
+    )
     parser.add_argument("--cve-hunt", action="store_true", help="Run CVE hunter")
     parser.add_argument("--zero-day", action="store_true", help="Run zero-day fuzzer")
-    parser.add_argument("--select-targets", action="store_true", help="Only run target selection")
-    parser.add_argument("--top", type=int, default=10, help="Number of targets to select")
+    parser.add_argument(
+        "--select-targets", action="store_true", help="Only run target selection"
+    )
+    parser.add_argument(
+        "--top", type=int, default=10, help="Number of targets to select"
+    )
     args = parser.parse_args()
 
     print(f"""
@@ -394,10 +480,10 @@ Examples:
 
     # Check tools
     installed, missing = check_tools()
-    log("info", f"Tools: {len(installed)}/{len(installed)+len(missing)} installed")
+    log("info", f"Tools: {len(installed)}/{len(installed) + len(missing)} installed")
     if missing:
         log("warn", f"Missing tools: {', '.join(missing)}")
-        log("warn", "Run: bash tools/install_tools.sh")
+        log("warn", "Run: bash ./install_tools.sh")
 
     # Target selection only
     if args.select_targets:
@@ -417,6 +503,7 @@ Examples:
 
     # Hunt specific target
     if args.target:
+        validate_target(args.target)
         log("info", f"Hunting target: {args.target}")
 
         # Setup wordlists if missing
@@ -429,7 +516,7 @@ Examples:
             recon_only=args.recon_only,
             scan_only=args.scan_only,
             cve_hunt=args.cve_hunt,
-            zero_day=args.zero_day
+            zero_day=args.zero_day,
         )
         print_dashboard([result])
         return
@@ -457,11 +544,19 @@ Examples:
 
         # Hunt the primary domain
         primary_domain = domains[0]
-        log("info", f"[{i+1}/{len(targets)}] Hunting: {target.get('name', primary_domain)}")
+        log(
+            "info",
+            f"[{i + 1}/{len(targets)}] Hunting: {target.get('name', primary_domain)}",
+        )
         log("info", f"  Domain: {primary_domain}")
         log("info", f"  Program: {target.get('url', 'N/A')}")
 
-        result = hunt_target(primary_domain, quick=args.quick)
+        result = hunt_target(
+            primary_domain,
+            quick=args.quick,
+            cve_hunt=args.cve_hunt,
+            zero_day=args.zero_day,
+        )
         results.append(result)
 
     print_dashboard(results)

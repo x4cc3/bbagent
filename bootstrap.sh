@@ -80,6 +80,11 @@ install_opencode() {
 while [ $# -gt 0 ]; do
     case "$1" in
         --client)
+            if [ $# -lt 2 ]; then
+                echo "Missing value for --client" >&2
+                usage
+                exit 1
+            fi
             CLIENT="$2"
             shift 2
             ;;

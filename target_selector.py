@@ -14,7 +14,9 @@ import os
 import argparse
 from datetime import datetime
 
-TARGETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "targets")
+from bbagent_paths import repo_path
+
+TARGETS_DIR = repo_path("targets")
 DEFAULT_OUTPUT = os.path.join(TARGETS_DIR, "selected_targets.json")
 
 # HackerOne directory API (public data)
@@ -31,17 +33,24 @@ def fetch_programs():
     try:
         result = subprocess.run(
             [
-                "curl", "-s", "-H", "Accept: application/json",
-                "https://hackerone.com/opportunities/all/search?ordering=started_accepting_at&limit=100&asset_types=URL&asset_types=WILDCARD&asset_types=DOMAIN"
+                "curl",
+                "-s",
+                "-H",
+                "Accept: application/json",
+                "https://hackerone.com/opportunities/all/search?ordering=started_accepting_at&limit=100&asset_types=URL&asset_types=WILDCARD&asset_types=DOMAIN",
             ],
-            capture_output=True, text=True, timeout=30
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if result.returncode == 0 and result.stdout.strip():
             data = json.loads(result.stdout)
             if "data" in data:
                 for prog in data["data"]:
                     programs.append(parse_h1_program(prog))
-                print(f"    [+] Fetched {len(programs)} programs from HackerOne directory")
+                print(
+                    f"    [+] Fetched {len(programs)} programs from HackerOne directory"
+                )
     except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
         print(f"    [!] HackerOne directory fetch failed: {e}")
 
@@ -51,16 +60,21 @@ def fetch_programs():
         try:
             result = subprocess.run(
                 [
-                    "curl", "-s",
-                    "https://raw.githubusercontent.com/arkadiyt/bounty-targets-data/main/data/hackerone_data.json"
+                    "curl",
+                    "-s",
+                    "https://raw.githubusercontent.com/arkadiyt/bounty-targets-data/main/data/hackerone_data.json",
                 ],
-                capture_output=True, text=True, timeout=30
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             if result.returncode == 0 and result.stdout.strip():
                 data = json.loads(result.stdout)
                 for prog in data:
                     programs.append(parse_bounty_targets_program(prog))
-                print(f"    [+] Fetched {len(programs)} programs from bounty-targets-data")
+                print(
+                    f"    [+] Fetched {len(programs)} programs from bounty-targets-data"
+                )
         except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
             print(f"    [!] Fallback fetch failed: {e}")
 
@@ -88,7 +102,7 @@ def parse_h1_program(prog):
             for s in prog.get("scopes", [])
         ),
         "started_accepting_at": prog.get("started_accepting_at", ""),
-        "source": "hackerone_directory"
+        "source": "hackerone_directory",
     }
 
 
@@ -104,11 +118,13 @@ def parse_bounty_targets_program(prog):
         identifier = scope.get("asset_identifier", "")
         asset_type = scope.get("asset_type", "")
         if asset_type in ("URL", "WILDCARD", "DOMAIN") or "." in identifier:
-            domains.append({
-                "asset_identifier": identifier,
-                "asset_type": asset_type,
-                "eligible_for_bounty": scope.get("eligible_for_bounty", False)
-            })
+            domains.append(
+                {
+                    "asset_identifier": identifier,
+                    "asset_type": asset_type,
+                    "eligible_for_bounty": scope.get("eligible_for_bounty", False),
+                }
+            )
             if "*" in identifier:
                 has_wildcard = True
 
@@ -123,7 +139,7 @@ def parse_bounty_targets_program(prog):
         "assets": domains,
         "has_wildcard": has_wildcard,
         "started_accepting_at": prog.get("started_accepting_at", ""),
-        "source": "bounty_targets_data"
+        "source": "bounty_targets_data",
     }
 
 
@@ -142,7 +158,7 @@ def get_curated_programs():
             "has_wildcard": True,
             "started_accepting_at": "",
             "source": "curated_fallback",
-            "note": "Replace with actual targets - run with internet access to fetch real programs"
+            "note": "Replace with actual targets - run with internet access to fetch real programs",
         }
     ]
 
@@ -216,7 +232,7 @@ def extract_scope_domains(prog):
         # Remove protocol prefixes
         for prefix in ("https://", "http://", "*."):
             if identifier.startswith(prefix):
-                identifier = identifier[len(prefix):]
+                identifier = identifier[len(prefix) :]
 
         # Remove trailing paths
         identifier = identifier.split("/")[0]
@@ -247,13 +263,15 @@ def select_targets(programs, top_n=10):
         domains = prog["scope_domains"]
         domain_str = ", ".join(domains[:3])
         if len(domains) > 3:
-            domain_str += f" (+{len(domains)-3} more)"
+            domain_str += f" (+{len(domains) - 3} more)"
 
         print(f"  {i:2d}. [{prog['score']:3d} pts] {prog['name']}")
         print(f"      URL: {prog['url']}")
-        print(f"      Wildcard: {'Yes' if prog['has_wildcard'] else 'No'} | "
-              f"Bounty: ${prog.get('bounty_min', '?')}-${prog.get('bounty_max', '?')} | "
-              f"Assets: {len(prog.get('assets', []))}")
+        print(
+            f"      Wildcard: {'Yes' if prog['has_wildcard'] else 'No'} | "
+            f"Bounty: ${prog.get('bounty_min', '?')}-${prog.get('bounty_max', '?')} | "
+            f"Assets: {len(prog.get('assets', []))}"
+        )
         if domain_str:
             print(f"      Domains: {domain_str}")
         print()
@@ -263,7 +281,9 @@ def select_targets(programs, top_n=10):
 
 def save_targets(targets, output_file):
     """Save selected targets to JSON."""
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    output_dir = os.path.dirname(output_file)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     output = {
         "generated_at": datetime.now().isoformat(),
@@ -275,8 +295,8 @@ def save_targets(targets, output_file):
             "Review program policy for rate limiting requirements",
             "Check if automated scanning is allowed",
             "Note any specific testing restrictions (no DoS, no social engineering, etc.)",
-            "Verify bounty eligibility for asset types you plan to test"
-        ]
+            "Verify bounty eligibility for asset types you plan to test",
+        ],
     }
 
     with open(output_file, "w") as f:
@@ -288,8 +308,12 @@ def save_targets(targets, output_file):
 
 def main():
     parser = argparse.ArgumentParser(description="HackerOne Target Selector")
-    parser.add_argument("--top", type=int, default=10, help="Number of top targets to select")
-    parser.add_argument("--output", type=str, default=DEFAULT_OUTPUT, help="Output JSON file")
+    parser.add_argument(
+        "--top", type=int, default=10, help="Number of top targets to select"
+    )
+    parser.add_argument(
+        "--output", type=str, default=DEFAULT_OUTPUT, help="Output JSON file"
+    )
     args = parser.parse_args()
 
     print("=============================================")

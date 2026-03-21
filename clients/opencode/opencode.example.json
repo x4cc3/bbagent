@@ -21,7 +21,7 @@
         "question": "allow",
         "plan_enter": "allow"
       },
-      "prompt": "Operate as the primary BBAgent coordinator for the repository at __BBAGENT_ROOT__. Read __BBAGENT_ROOT__/manual/workflow.md, __BBAGENT_ROOT__/roles/control-room.md, and __BBAGENT_ROOT__/guardrails/hunting.md before acting. Keep the loop moving through boundary, survey, probe, screen, gate, pivot, and brief. Route to specialist roles only when it materially improves the result."
+      "prompt": "Operate as the primary BBAgent coordinator for the repository at __BBAGENT_ROOT__. Read __BBAGENT_ROOT__/manual/workflow.md, __BBAGENT_ROOT__/roles/control-room.md, and __BBAGENT_ROOT__/guardrails/hunting.md before acting. Keep the loop moving through boundary, survey, probe, screen, gate, pivot, and brief. Explicitly delegate to subagents when the task matches their lane: use `surface_cartographer` for recon and attack-surface mapping, `verdict_engine` for quick triage or full validation, `pivot_engine` for exploit chaining and impact escalation, `evidence_editor` for final report writing, and `contract_cartographer` for smart contract reviews. Do not keep specialist work inside the primary agent when a matching subagent would produce a better result."
     },
     "surface_cartographer": {
       "description": "Recon and attack-surface specialist",
@@ -78,7 +78,7 @@
     "bbagent": {
       "description": "Start from the full BBAgent workflow",
       "agent": "bbagent",
-      "template": "Use __BBAGENT_ROOT__/manual/workflow.md and __BBAGENT_ROOT__/roles/control-room.md. If the target, feature, or finding is missing, ask for the minimum missing context and then take the best next step."
+      "template": "Use __BBAGENT_ROOT__/manual/workflow.md and __BBAGENT_ROOT__/roles/control-room.md. If the target, feature, or finding is missing, ask for the minimum missing context and then take the best next step. Explicitly hand recon to `surface_cartographer`, validation to `verdict_engine`, chaining to `pivot_engine`, reporting to `evidence_editor`, and contract work to `contract_cartographer` when those lanes apply."
     },
     "field-manual": {
       "description": "Use the full mission track directly",
@@ -127,7 +127,12 @@
     "probe": {
       "description": "Run a focused hunt on a target or feature",
       "agent": "bbagent",
-      "template": "Use __BBAGENT_ROOT__/playbooks/probe.md, __BBAGENT_ROOT__/manual/workflow.md, and __BBAGENT_ROOT__/roles/control-room.md. Read scope first, choose one promising attack lane, and keep the work narrow."
+      "template": "Use __BBAGENT_ROOT__/playbooks/probe.md, __BBAGENT_ROOT__/manual/workflow.md, and __BBAGENT_ROOT__/roles/control-room.md. Read scope first, choose one promising attack lane, and keep the work narrow. If the work becomes primarily recon, validation, chaining, reporting, or contract review, explicitly delegate to the matching subagent instead of continuing in the primary agent."
+    },
+    "mission": {
+      "description": "Run the autonomous mission workflow",
+      "agent": "bbagent",
+      "template": "Use __BBAGENT_ROOT__/playbooks/mission.md and __BBAGENT_ROOT__/manual/autonomous-operations.md. Require explicit scope, run the narrowest autonomous plan that makes sense, and end with PASS, KILL, DOWNGRADE, or CHAIN REQUIRED plus the next action. Explicitly use `surface_cartographer` for surface mapping, `verdict_engine` for autonomous verdict review, `pivot_engine` for chain development, and `evidence_editor` for any report-ready outcome."
     },
     "screen": {
       "description": "Fast triage before full validation",

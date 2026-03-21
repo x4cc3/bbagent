@@ -16,14 +16,19 @@ import re
 import subprocess
 import sys
 from datetime import datetime
+from urllib.parse import quote
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FINDINGS_DIR = os.path.join(BASE_DIR, "findings")
+from bbagent_paths import repo_path
+
+BASE_DIR = repo_path()
+FINDINGS_DIR = repo_path("findings")
 
 
 def run_cmd(cmd, timeout=30):
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=timeout
+        )
         return result.returncode == 0, result.stdout.strip()
     except Exception as e:
         return False, str(e)
@@ -41,7 +46,7 @@ def detect_technologies(domain, recon_dir=None):
             with open(httpx_file) as f:
                 for line in f:
                     # httpx outputs tech in brackets: [tech1,tech2]
-                    tech_match = re.findall(r'\[([^\]]+)\]', line)
+                    tech_match = re.findall(r"\[([^\]]+)\]", line)
                     for match in tech_match:
                         for t in match.split(","):
                             t = t.strip()
@@ -52,10 +57,10 @@ def detect_technologies(domain, recon_dir=None):
     if not techs:
         success, output = run_cmd(
             f'echo "{domain}" | httpx -silent -tech-detect -status-code 2>/dev/null',
-            timeout=30
+            timeout=30,
         )
         if success and output:
-            tech_match = re.findall(r'\[([^\]]+)\]', output)
+            tech_match = re.findall(r"\[([^\]]+)\]", output)
             for match in tech_match:
                 for t in match.split(","):
                     t = t.strip()
@@ -64,24 +69,25 @@ def detect_technologies(domain, recon_dir=None):
 
     # Method 3: Manual header analysis
     success, output = run_cmd(
-        f'curl -sI "https://{domain}" --max-time 10 2>/dev/null',
-        timeout=15
+        f'curl -sI "https://{domain}" --max-time 10 2>/dev/null', timeout=15
     )
     if success and output:
         headers = output.lower()
 
         # Server header
-        server_match = re.search(r'server:\s*(.+)', headers)
+        server_match = re.search(r"server:\s*(.+)", headers)
         if server_match:
             server = server_match.group(1).strip()
             techs[server] = techs.get(server, 0) + 1
             # Extract version
-            ver_match = re.search(r'(nginx|apache|iis|lighttpd|caddy|tomcat|jetty)[/ ]*([0-9.]+)', server)
+            ver_match = re.search(
+                r"(nginx|apache|iis|lighttpd|caddy|tomcat|jetty)[/ ]*([0-9.]+)", server
+            )
             if ver_match:
                 techs[f"{ver_match.group(1)}/{ver_match.group(2)}"] = 1
 
         # X-Powered-By
-        powered_match = re.search(r'x-powered-by:\s*(.+)', headers)
+        powered_match = re.search(r"x-powered-by:\s*(.+)", headers)
         if powered_match:
             powered = powered_match.group(1).strip()
             techs[powered] = techs.get(powered, 0) + 1
@@ -118,7 +124,7 @@ def detect_technologies(domain, recon_dir=None):
     for path, tech in fingerprints.items():
         success, output = run_cmd(
             f'curl -s -o /dev/null -w "%{{http_code}}" "https://{domain}{path}" --max-time 5',
-            timeout=10
+            timeout=10,
         )
         if success and output in ("200", "301", "302", "403"):
             techs[tech] = techs.get(tech, 0) + 1
@@ -138,14 +144,15 @@ def search_cves(tech_name, max_results=10):
     cves = []
 
     # Clean up tech name for search
-    search_term = re.sub(r'[/.]', ' ', tech_name).strip()
+    search_term = re.sub(r"[/.]", " ", tech_name).strip()
+    encoded_term = quote(search_term)
 
     # Method 1: NVD API (NIST)
     print(f"    [>] Searching CVEs for: {tech_name}...")
     try:
         success, output = run_cmd(
-            f'curl -s "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={search_term}&resultsPerPage={max_results}" --max-time 15',
-            timeout=20
+            f'curl -s "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={encoded_term}&resultsPerPage={max_results}" --max-time 15',
+            timeout=20,
         )
         if success and output:
             data = json.loads(output)
@@ -172,13 +179,15 @@ def search_cves(tech_name, max_results=10):
                         break
 
                 if cve_id:
-                    cves.append({
-                        "id": cve_id,
-                        "description": desc[:200],
-                        "cvss_score": cvss_score,
-                        "severity": severity,
-                        "technology": tech_name
-                    })
+                    cves.append(
+                        {
+                            "id": cve_id,
+                            "description": desc[:200],
+                            "cvss_score": cvss_score,
+                            "severity": severity,
+                            "technology": tech_name,
+                        }
+                    )
     except (json.JSONDecodeError, Exception):
         pass
 
@@ -186,8 +195,8 @@ def search_cves(tech_name, max_results=10):
     if not cves:
         try:
             success, output = run_cmd(
-                f'curl -s "https://cve.circl.lu/api/search/{search_term}" --max-time 15',
-                timeout=20
+                f'curl -s "https://cve.circl.lu/api/search/{encoded_term}" --max-time 15',
+                timeout=20,
             )
             if success and output:
                 data = json.loads(output)
@@ -197,13 +206,17 @@ def search_cves(tech_name, max_results=10):
                     for item in data[:max_results]:
                         cve_id = item.get("id", item.get("cve_id", ""))
                         if cve_id:
-                            cves.append({
-                                "id": cve_id,
-                                "description": item.get("summary", "")[:200],
-                                "cvss_score": item.get("cvss", 0),
-                                "severity": "high" if float(item.get("cvss", 0) or 0) >= 7 else "medium",
-                                "technology": tech_name
-                            })
+                            cves.append(
+                                {
+                                    "id": cve_id,
+                                    "description": item.get("summary", "")[:200],
+                                    "cvss_score": item.get("cvss", 0),
+                                    "severity": "high"
+                                    if float(item.get("cvss", 0) or 0) >= 7
+                                    else "medium",
+                                    "technology": tech_name,
+                                }
+                            )
         except (json.JSONDecodeError, Exception):
             pass
 
@@ -246,9 +259,16 @@ def check_exposed_configs(domain, recon_dir=None):
     exposed = []
 
     config_paths = [
-        "/env.js", "/app_env.js", "/config.js", "/settings.js",
-        "/.env", "/.env.local", "/.env.production",
-        "/static/env.js", "/assets/env.js", "/config/env.js",
+        "/env.js",
+        "/app_env.js",
+        "/config.js",
+        "/settings.js",
+        "/.env",
+        "/.env.local",
+        "/.env.production",
+        "/static/env.js",
+        "/assets/env.js",
+        "/config/env.js",
     ]
 
     hosts = [f"https://{domain}"]
@@ -263,13 +283,17 @@ def check_exposed_configs(domain, recon_dir=None):
             url = f"{host}{path}"
             success, output = run_cmd(
                 f'curl -s -o /tmp/cfg_check.txt -w "%{{http_code}}" --max-time 5 "{url}"',
-                timeout=10
+                timeout=10,
             )
             if success and output.strip() == "200":
                 # Verify it's not an HTML error page
-                _, content = run_cmd('file /tmp/cfg_check.txt', timeout=5)
-                _, head = run_cmd('head -1 /tmp/cfg_check.txt', timeout=5)
-                if 'HTML' not in content and '<!DOCTYPE' not in head and '<html' not in head.lower():
+                _, content = run_cmd("file /tmp/cfg_check.txt", timeout=5)
+                _, head = run_cmd("head -1 /tmp/cfg_check.txt", timeout=5)
+                if (
+                    "HTML" not in content
+                    and "<!DOCTYPE" not in head
+                    and "<html" not in head.lower()
+                ):
                     exposed.append(url)
                     print(f"    [VULN] Config exposed: {url}")
 
@@ -294,7 +318,9 @@ def hunt_cves(domain, recon_dir=None):
         config_file = os.path.join(findings_dir, "exposed_configs.txt")
         with open(config_file, "w") as f:
             f.write("\n".join(exposed_configs))
-        print(f"    [+] Saved {len(exposed_configs)} exposed config URLs to {config_file}")
+        print(
+            f"    [+] Saved {len(exposed_configs)} exposed config URLs to {config_file}"
+        )
 
     # Step 1: Detect technologies
     techs = detect_technologies(domain, recon_dir)
@@ -308,19 +334,29 @@ def hunt_cves(domain, recon_dir=None):
             if cves:
                 all_cves.extend(cves)
                 for cve in cves:
-                    severity_str = f"[{cve['severity'].upper()}]" if cve['severity'] != 'unknown' else ""
-                    print(f"    {cve['id']} {severity_str} CVSS:{cve['cvss_score']} — {cve['description'][:80]}...")
+                    severity_str = (
+                        f"[{cve['severity'].upper()}]"
+                        if cve["severity"] != "unknown"
+                        else ""
+                    )
+                    print(
+                        f"    {cve['id']} {severity_str} CVSS:{cve['cvss_score']} — {cve['description'][:80]}..."
+                    )
 
         # Save CVE search results
         if all_cves:
             cve_file = os.path.join(findings_dir, "cve_database_matches.json")
             with open(cve_file, "w") as f:
-                json.dump({
-                    "target": domain,
-                    "scan_date": datetime.now().isoformat(),
-                    "technologies_detected": list(techs.keys()),
-                    "cves_found": all_cves
-                }, f, indent=2)
+                json.dump(
+                    {
+                        "target": domain,
+                        "scan_date": datetime.now().isoformat(),
+                        "technologies_detected": list(techs.keys()),
+                        "cves_found": all_cves,
+                    },
+                    f,
+                    indent=2,
+                )
             print(f"\n    [+] Saved {len(all_cves)} CVE matches to {cve_file}")
 
     # Step 3: Run nuclei CVE detection
@@ -353,7 +389,9 @@ def hunt_cves(domain, recon_dir=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CVE Hunter — Find known vulnerabilities")
+    parser = argparse.ArgumentParser(
+        description="CVE Hunter — Find known vulnerabilities"
+    )
     parser.add_argument("domain", nargs="?", help="Target domain")
     parser.add_argument("--recon-dir", type=str, help="Path to recon results directory")
     args = parser.parse_args()
@@ -366,7 +404,7 @@ def main():
     recon_dir = args.recon_dir
 
     if recon_dir and not domain:
-        domain = os.path.basename(recon_dir)
+        domain = os.path.basename(os.path.normpath(recon_dir))
 
     if not recon_dir and domain:
         potential = os.path.join(BASE_DIR, "recon", domain)

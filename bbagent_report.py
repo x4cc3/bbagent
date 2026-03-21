@@ -16,8 +16,10 @@ import re
 import sys
 from datetime import datetime
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPORTS_DIR = os.path.join(BASE_DIR, "reports")
+from bbagent_paths import repo_path
+
+BASE_DIR = repo_path()
+REPORTS_DIR = repo_path("reports")
 
 # Severity mappings
 SEVERITY_MAP = {
@@ -47,8 +49,8 @@ VULN_TEMPLATES = {
         "cwe": "CWE-79",
         "references": [
             "https://owasp.org/www-community/attacks/xss/",
-            "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
-        ]
+            "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+        ],
     },
     "takeover": {
         "title": "Subdomain Takeover on {domain}",
@@ -68,8 +70,8 @@ VULN_TEMPLATES = {
         "cwe": "CWE-284",
         "references": [
             "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/10-Test_for_Subdomain_Takeover",
-            "https://github.com/EdOverflow/can-i-take-over-xyz"
-        ]
+            "https://github.com/EdOverflow/can-i-take-over-xyz",
+        ],
     },
     "cors": {
         "title": "CORS Misconfiguration on {domain}",
@@ -88,8 +90,8 @@ VULN_TEMPLATES = {
         "cwe": "CWE-942",
         "references": [
             "https://portswigger.net/web-security/cors",
-            "https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny"
-        ]
+            "https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny",
+        ],
     },
     "ssrf": {
         "title": "Server-Side Request Forgery (SSRF) on {domain}",
@@ -109,8 +111,8 @@ VULN_TEMPLATES = {
         "cwe": "CWE-918",
         "references": [
             "https://owasp.org/www-community/attacks/Server_Side_Request_Forgery",
-            "https://portswigger.net/web-security/ssrf"
-        ]
+            "https://portswigger.net/web-security/ssrf",
+        ],
     },
     "redirect": {
         "title": "Open Redirect on {domain}",
@@ -129,8 +131,8 @@ VULN_TEMPLATES = {
         "cwe": "CWE-601",
         "references": [
             "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html",
-            "https://portswigger.net/kb/issues/00500100_open-redirection-reflected"
-        ]
+            "https://portswigger.net/kb/issues/00500100_open-redirection-reflected",
+        ],
     },
     "exposure": {
         "title": "Sensitive Data Exposure on {domain}",
@@ -150,7 +152,7 @@ VULN_TEMPLATES = {
         "cwe": "CWE-200",
         "references": [
             "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/05-Enumerate_Infrastructure_and_Application_Admin_Interfaces"
-        ]
+        ],
     },
     "cve": {
         "title": "Known CVE ({cve_id}) on {domain}",
@@ -165,7 +167,7 @@ VULN_TEMPLATES = {
             "3. Monitor for exploitation attempts via WAF/IDS rules"
         ),
         "cwe": "CWE-1035",
-        "references": []
+        "references": [],
     },
     "misconfig": {
         "title": "Security Misconfiguration on {domain}",
@@ -183,9 +185,7 @@ VULN_TEMPLATES = {
             "5. Follow vendor security hardening guides"
         ),
         "cwe": "CWE-16",
-        "references": [
-            "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
-        ]
+        "references": ["https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"],
     },
     "idor": {
         "title": "Insecure Direct Object Reference (IDOR) on {domain}",
@@ -204,8 +204,8 @@ VULN_TEMPLATES = {
         "cwe": "CWE-639",
         "references": [
             "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/04-Testing_for_Insecure_Direct_Object_References",
-            "https://portswigger.net/web-security/access-control/idor"
-        ]
+            "https://portswigger.net/web-security/access-control/idor",
+        ],
     },
     "auth_bypass": {
         "title": "Authentication/Authorization Bypass on {domain}",
@@ -225,8 +225,8 @@ VULN_TEMPLATES = {
         "cwe": "CWE-287",
         "references": [
             "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/",
-            "https://owasp.org/Top10/A01_2021-Broken_Access_Control/"
-        ]
+            "https://owasp.org/Top10/A01_2021-Broken_Access_Control/",
+        ],
     },
     "info_disclosure": {
         "title": "Information Disclosure on {domain}",
@@ -246,9 +246,9 @@ VULN_TEMPLATES = {
         "cwe": "CWE-200",
         "references": [
             "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/",
-            "https://cwe.mitre.org/data/definitions/497.html"
-        ]
-    }
+            "https://cwe.mitre.org/data/definitions/497.html",
+        ],
+    },
 }
 
 
@@ -265,11 +265,11 @@ def parse_nuclei_line(line):
         "template_id": "",
         "severity": "medium",
         "url": "",
-        "extra": ""
+        "extra": "",
     }
 
     # Extract bracketed fields
-    brackets = re.findall(r'\[([^\]]+)\]', parts)
+    brackets = re.findall(r"\[([^\]]+)\]", parts)
     if len(brackets) >= 3:
         result["template_id"] = brackets[0]
         result["severity"] = brackets[2].lower()
@@ -277,7 +277,7 @@ def parse_nuclei_line(line):
         result["template_id"] = brackets[0]
 
     # Extract URL
-    url_match = re.search(r'(https?://\S+)', parts)
+    url_match = re.search(r"(https?://\S+)", parts)
     if url_match:
         result["url"] = url_match.group(1)
 
@@ -290,14 +290,9 @@ def parse_dalfox_line(line):
     if not parts:
         return None
 
-    result = {
-        "raw": parts,
-        "url": "",
-        "payload": "",
-        "severity": "medium"
-    }
+    result = {"raw": parts, "url": "", "payload": "", "severity": "medium"}
 
-    url_match = re.search(r'(https?://\S+)', parts)
+    url_match = re.search(r"(https?://\S+)", parts)
     if url_match:
         result["url"] = url_match.group(1)
 
@@ -309,7 +304,7 @@ def parse_dalfox_line(line):
 
 def extract_domain(url):
     """Extract domain from URL."""
-    match = re.search(r'https?://([^/]+)', url)
+    match = re.search(r"https?://([^/]+)", url)
     return match.group(1) if match else "unknown"
 
 
@@ -322,8 +317,7 @@ def generate_report(finding, vuln_type, target_name=None):
 
     # Build title
     title = template["title"].format(
-        domain=domain,
-        cve_id=finding.get("template_id", "Unknown CVE")
+        domain=domain, cve_id=finding.get("template_id", "Unknown CVE")
     )
 
     severity = finding.get("severity", template["severity"])
@@ -332,13 +326,13 @@ def generate_report(finding, vuln_type, target_name=None):
     report = f"""# {title}
 
 ## Severity
-**{severity.upper()}** (CVSS: {severity_info['cvss_range']})
+**{severity.upper()}** (CVSS: {severity_info["cvss_range"]})
 
 ## Vulnerability Type
-{template.get('cwe', 'N/A')} — {vuln_type.upper()}
+{template.get("cwe", "N/A")} — {vuln_type.upper()}
 
 ## Summary
-A {vuln_type} vulnerability was discovered on `{domain}`. {template['impact'][:200]}...
+A {vuln_type} vulnerability was discovered on `{domain}`. {template["impact"][:200]}...
 
 ## Affected URL
 ```
@@ -355,16 +349,16 @@ A {vuln_type} vulnerability was discovered on `{domain}`. {template['impact'][:2
 ## Evidence / Proof of Concept
 **Scanner Output:**
 ```
-{finding.get('raw', 'N/A')}
+{finding.get("raw", "N/A")}
 ```
 
-**Template/Check:** `{finding.get('template_id', 'manual')}`
+**Template/Check:** `{finding.get("template_id", "manual")}`
 
 ## Impact
-{template['impact']}
+{template["impact"]}
 
 ## Remediation
-{template['remediation']}
+{template["remediation"]}
 
 ## References
 """
@@ -376,7 +370,7 @@ A {vuln_type} vulnerability was discovered on `{domain}`. {template['impact'][:2
 
     report += f"""
 ---
-*Report generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+*Report generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
 *Scanner: Automated Bug Bounty Pipeline*
 """
     return report, title
@@ -437,20 +431,22 @@ def process_findings_dir(findings_dir):
                 report_content, title = generate_report(finding, vuln_type, target_name)
 
                 # Save report
-                report_id = f"{vuln_type}_{i+1:03d}"
+                report_id = f"{vuln_type}_{i + 1:03d}"
                 report_file = os.path.join(report_dir, f"{report_id}.md")
                 with open(report_file, "w") as rf:
                     rf.write(report_content)
 
                 total_reports += 1
-                report_index.append({
-                    "id": report_id,
-                    "title": title,
-                    "severity": finding.get("severity", "medium"),
-                    "url": finding.get("url", ""),
-                    "file": report_file,
-                    "type": vuln_type
-                })
+                report_index.append(
+                    {
+                        "id": report_id,
+                        "title": title,
+                        "severity": finding.get("severity", "medium"),
+                        "url": finding.get("url", ""),
+                        "file": report_file,
+                        "type": vuln_type,
+                    }
+                )
 
     # Save report index
     if report_index:
@@ -460,12 +456,16 @@ def process_findings_dir(findings_dir):
 
         index_file = os.path.join(report_dir, "INDEX.json")
         with open(index_file, "w") as f:
-            json.dump({
-                "target": target_name,
-                "generated_at": datetime.now().isoformat(),
-                "total_reports": total_reports,
-                "reports": report_index
-            }, f, indent=2)
+            json.dump(
+                {
+                    "target": target_name,
+                    "generated_at": datetime.now().isoformat(),
+                    "total_reports": total_reports,
+                    "reports": report_index,
+                },
+                f,
+                indent=2,
+            )
 
         # Also generate a summary markdown
         summary_file = os.path.join(report_dir, "SUMMARY.md")
@@ -476,7 +476,9 @@ def process_findings_dir(findings_dir):
             f.write("| # | Severity | Type | Title | URL |\n")
             f.write("|---|----------|------|-------|-----|\n")
             for r in report_index:
-                f.write(f"| {r['id']} | {r['severity'].upper()} | {r['type']} | {r['title'][:50]} | {r['url'][:60]} |\n")
+                f.write(
+                    f"| {r['id']} | {r['severity'].upper()} | {r['type']} | {r['title'][:50]} | {r['url'][:60]} |\n"
+                )
 
     return total_reports, report_index
 
@@ -538,13 +540,23 @@ def attach_poc_images(report_file, image_paths):
 
 def main():
     parser = argparse.ArgumentParser(description="Bug Bounty Report Generator")
-    parser.add_argument("findings_dir", nargs="?", help="Directory containing scan findings")
+    parser.add_argument(
+        "findings_dir", nargs="?", help="Directory containing scan findings"
+    )
     parser.add_argument("--manual", action="store_true", help="Create manual report")
-    parser.add_argument("--type", type=str, help="Vulnerability type (xss, ssrf, takeover, etc.)")
+    parser.add_argument(
+        "--type", type=str, help="Vulnerability type (xss, ssrf, takeover, etc.)"
+    )
     parser.add_argument("--url", type=str, help="Affected URL (for manual reports)")
-    parser.add_argument("--param", type=str, help="Affected parameter (for manual reports)")
-    parser.add_argument("--evidence", type=str, help="Evidence/PoC text (for manual reports)")
-    parser.add_argument("--poc-images", type=str, nargs="+", help="PoC screenshot PNG files to attach")
+    parser.add_argument(
+        "--param", type=str, help="Affected parameter (for manual reports)"
+    )
+    parser.add_argument(
+        "--evidence", type=str, help="Evidence/PoC text (for manual reports)"
+    )
+    parser.add_argument(
+        "--poc-images", type=str, nargs="+", help="PoC screenshot PNG files to attach"
+    )
     args = parser.parse_args()
 
     print("=============================================")
@@ -554,9 +566,13 @@ def main():
     if args.manual:
         if not args.type or not args.url:
             print("[-] Manual mode requires --type and --url")
-            print("    Types: xss, ssrf, takeover, cors, redirect, exposure, cve, misconfig, idor, auth_bypass, info_disclosure")
+            print(
+                "    Types: xss, ssrf, takeover, cors, redirect, exposure, cve, misconfig, idor, auth_bypass, info_disclosure"
+            )
             sys.exit(1)
-        report_file = create_manual_report(args.type, args.url, args.param, args.evidence)
+        report_file = create_manual_report(
+            args.type, args.url, args.param, args.evidence
+        )
         # Attach PoC images if provided
         if args.poc_images and report_file:
             attach_poc_images(report_file, args.poc_images)
@@ -565,7 +581,9 @@ def main():
     if not args.findings_dir:
         print("[-] Please provide a findings directory or use --manual mode")
         print("    Usage: python3 bbagent_report.py <findings_dir>")
-        print("    Usage: python3 bbagent_report.py --manual --type xss --url https://example.com/search?q=test")
+        print(
+            "    Usage: python3 bbagent_report.py --manual --type xss --url https://example.com/search?q=test"
+        )
         sys.exit(1)
 
     if not os.path.isdir(args.findings_dir):
